@@ -43,6 +43,7 @@ short int *sel_get_num(void);
 void move_selection(int, int);
 void scroll_up(int);
 void scroll_down(int);
+void call_parser(void);
 
 int setup(void);
 
@@ -75,6 +76,7 @@ input(void)
 		case 'r':
 			draw_table_num(Grey, 5, 2, 7, 1, rows + 1, columns, sheet1->vals);
 			break;
+		case '=': call_parser(); break;
 		case 's': return 0;
 		case 'q': return -1;
 		default:  break;
@@ -120,7 +122,7 @@ scroll_up(int r)
 	if (scroll_offset <= 0) return ;
 	// TODO: make it variable (dependent on 'r')
 	fputs("\x1b[T", stderr); /* scroll Down */
-	draw_box_str(Black, 9, terminal_status.height - 1, 1, "\x1b[K");
+	draw_box_str(Black, 9, rows + 2, 1, "\x1b[K");
 	draw_column_numbering(Red, 1, 4, 'a', 'a' + (columns - 1));
 	draw_box_num(Grey, 5, 1, 1, sheet1->rows);
 	draw_box_str(Black, 9, 2, 6, "\x1b[K"); /* clear prev row numbering */
@@ -146,6 +148,22 @@ scroll_down(int r)
 	    1, columns, sheet1->vals + ((rows + scroll_offset - 1) * sheet1->cols));
 	draw_box_num(Red, 5, 21, 1, scroll_offset + 20);
 	scroll_offset += 1;
+}
+
+
+void
+call_parser(void)
+{
+	int i;
+	draw_box_str(White, 2, rows + 2, 5, "= ");
+	terminal_restore();
+	fputs("\x1b[?25h", stderr);
+	i = yyparse();
+	if (i >= 0) *sel_get_num() = i;
+	terminal_reinit();
+	fputs("\x1b[?25l", stderr);
+	draw_box_str(Black, 9, rows + 2, 1, "\x1b[K");
+	move_selection(0, 0);
 }
 
 
