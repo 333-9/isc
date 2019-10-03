@@ -14,9 +14,9 @@
 
 
 Sheet
-sheet_init(size_t height)
-{	struct sheet *s;
-	if ((s = malloc(sizeof(struct sheet))) == NULL) return NULL;
+csheet_init(size_t height)
+{	struct csheet *s;
+	if ((s = malloc(sizeof(struct csheet))) == NULL) return NULL;
 	memset(s->num, 0, sizeof(void *) * Ncol);
 	memset(s->str, 0, sizeof(void *) * Ncol);
 	s->height = height;
@@ -25,7 +25,7 @@ sheet_init(size_t height)
 
 
 void
-sheet_free(Sheet s)
+csheet_free(Sheet s)
 {
 	int i, si;
 	for (i = 0; i < Ncol; i++) {
@@ -41,7 +41,7 @@ sheet_free(Sheet s)
 
 
 int
-sheet_add_rows(Sheet s, size_t n)
+csheet_add_rows(Sheet s, size_t n)
 {
 	int i;
 	s->height += n;
@@ -59,7 +59,7 @@ sheet_add_rows(Sheet s, size_t n)
 
 
 static int
-sheet_add_num_col(Sheet s, unsigned char col) {
+csheet_add_num_col(Sheet s, unsigned char col) {
 	if (s->num[col] != NULL) return 0;
 	if ((s->num[col] = malloc(s->height * sizeof(int))) == NULL) return -1;
 	memset(s->num[col], 0, s->height * sizeof(int));
@@ -67,7 +67,7 @@ sheet_add_num_col(Sheet s, unsigned char col) {
 }
 
 static int
-sheet_add_str_col(Sheet s, unsigned char col) {
+csheet_add_str_col(Sheet s, unsigned char col) {
 	if (s->str[col] != NULL) return 0;
 	if ((s->str[col] = malloc(s->height * sizeof(char *))) == NULL) return -1;
 	memset(s->str[col], 0, s->height * sizeof(char *));
@@ -76,31 +76,31 @@ sheet_add_str_col(Sheet s, unsigned char col) {
 
 
 int
-sheet_add_num(Sheet s, unsigned char col, size_t row, int num)
+csheet_add_num(Sheet s, unsigned char col, size_t row, int num)
 {
-	if (sheet_add_num_col(s, col) < 0) return -1;
+	if (csheet_add_num_col(s, col) < 0) return -1;
 	s->num[col][row] = num;
 }
 
 
 int
-sheet_add_str(Sheet s, unsigned char col, size_t row, const char *str)
+csheet_add_str(Sheet s, unsigned char col, size_t row, const char *str)
 {
-	if (sheet_add_str_col(s, col) < 0) return -1;
+	if (csheet_add_str_col(s, col) < 0) return -1;
 	s->str[col][row] = strdup(str);
 }
 
 
 int
-sheet_set_str(Sheet s, unsigned char col, size_t row, char *str)
+csheet_set_str(Sheet s, unsigned char col, size_t row, char *str)
 {
-	if (sheet_add_str_col(s, col) < 0) return -1;
+	if (csheet_add_str_col(s, col) < 0) return -1;
 	s->str[col][row] = str;
 }
 
 
 int
-sheet_get_num(Sheet s, unsigned char col, size_t row)
+csheet_get_num(Sheet s, unsigned char col, size_t row)
 {
 	if (row >= s->height) return 0;
 	if (s->num[col] == NULL) return 0;
@@ -109,7 +109,7 @@ sheet_get_num(Sheet s, unsigned char col, size_t row)
 
 
 char *
-sheet_get_str(Sheet s, unsigned char col, size_t row)
+csheet_get_str(Sheet s, unsigned char col, size_t row)
 {
 	if (row >= s->height) return 0;
 	if (s->str[col] == NULL) return 0;
@@ -118,7 +118,7 @@ sheet_get_str(Sheet s, unsigned char col, size_t row)
 
 
 int
-sheet_do_col(Sheet s, unsigned char col, int (*func)(int, int))
+csheet_do_col(Sheet s, unsigned char col, int (*func)(int, int))
 {
 	int i;
 	int arg;
@@ -167,6 +167,13 @@ vsheet_set_box(struct var_sheet *s, size_t row, size_t col, box_sz val)
 	//if (row >= s->rows) s = vsheet_add_rows(s, s->rows - row + 1);
 	s->vals[(row * s->cols) + col] = val;
 	return s;
+}
+
+
+short int *
+vsheet_get_num(struct var_sheet *s, size_t r, size_t c) {
+	if (r >= s->rows || c >= s->cols) return NULL;
+	return (s->vals + (r * s->cols) + c);
 }
 
 

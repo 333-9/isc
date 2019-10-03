@@ -15,6 +15,8 @@
 
 #include "config.h"
 
+extern char *parser_input_str;
+
 
 struct position {
 	int col; /* starts at 0 */
@@ -53,6 +55,14 @@ void restore(void);
 
 
 
+/* parser specific functions */
+short int *
+parser_get_num(size_t r, size_t c) {
+	return vsheet_get_num(sheet1, r, c);
+}
+
+
+
 
 int
 input(void)
@@ -73,13 +83,10 @@ input(void)
 			sheet1 = vsheet_set_box(sheet1, scroll_offset + sel1.row, sel1.col, 0);
 			move_selection(0, 0);
 			break;
-		case 'r':
-			draw_table_num(Grey, 5, 2, 7, 1, rows + 1, columns, sheet1->vals);
-			break;
 		case '=': call_parser(); break;
 		case 's': return 0;
 		case 'q': return -1;
-		default:  break;
+		default:  putc('\a', stderr); break;
 		};
 	};
 }
@@ -155,11 +162,14 @@ void
 call_parser(void)
 {
 	int i;
-	draw_box_str(White, 2, rows + 2, 5, "= ");
+	draw_box_str(Aqua, 2, rows + 2, 5, "= ");
 	terminal_restore();
 	fputs("\x1b[?25h", stderr);
-	i = yyparse();
-	if (i >= 0) *sel_get_num() = i;
+	if (scanf("\n%m[^\n]", &parser_input_str) > 0) {
+		i = yyparse();
+		if (i >= 0) *sel_get_num() = i;
+		free(parser_input_str);
+	};
 	terminal_reinit();
 	fputs("\x1b[?25l", stderr);
 	draw_box_str(Black, 9, rows + 2, 1, "\x1b[K");
@@ -172,12 +182,15 @@ call_parser(void)
 int
 setup(void)
 {
+	/* var init */
+	parser_input_str = NULL;
+	sheet1 = vsheet_init(columns);
+	sheet1 = vsheet_add_rows(sheet1, rows);
+	/* term init */
 	terminal_init();
 	terminal_buffer_enable();
 	terminal_status.height = rows + 3;
 	terminal_status.width  = columns;
-	sheet1 = vsheet_init(columns);
-	sheet1 = vsheet_add_rows(sheet1, rows);
 	draw_column_numbering(Red, 1, 4, 'a', 'a' + columns - 1);
 	draw_row_numbering(Red, 2, 1, 0, rows - 1);
 	draw_box_num(Grey, 5, 1, 1, sheet1->rows);

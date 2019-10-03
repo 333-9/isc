@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "parser/parser_defs.h"
+
 int yylex();
 
 void yyerror(char *s) {
@@ -41,16 +43,26 @@ expr: NUM { $$ = $1; }
 |	expr '|' expr        { $$ = $1 | $3; }
 |	expr L_Shift expr    { $$ = $1 << $3; }
 |	expr R_Shift expr    { $$ = $1 >> $3; }
-|	variable '=' ':' expr      { vars[$1] = $4; $$ = vars[$1]; }
-|	variable '=' '+' expr      { vars[$1] = vars[$1] + $4; $$ = vars[$1]; }
-|	variable '=' '-' expr      { vars[$1] = vars[$1] - $4; $$ = vars[$1]; }
-|	variable '=' '*' expr      { vars[$1] = vars[$1] * $4; $$ = vars[$1]; }
-|	variable '=' '&' expr      { vars[$1] = vars[$1] & $4; $$ = vars[$1]; }
-|	variable '=' '^' expr      { vars[$1] = vars[$1] ^ $4; $$ = vars[$1]; }
-|	variable '=' '|' expr      { vars[$1] = vars[$1] ^ $4; $$ = vars[$1]; }
-|	variable '=' L_Shift expr  { vars[$1] = vars[$1] << $4; $$ = vars[$1]; }
-|	variable '=' R_Shift expr  { vars[$1] = vars[$1] >> $4; $$ = vars[$1]; }
+|	variable '=' ':' expr      { vars[$1]   = $4; $$ = vars[$1]; }
+|	variable '=' '+' expr      { vars[$1]  += $4; $$ = vars[$1]; }
+|	variable '=' '-' expr      { vars[$1]  -= $4; $$ = vars[$1]; }
+|	variable '=' '*' expr      { vars[$1]  *= $4; $$ = vars[$1]; }
+|	variable '=' '&' expr      { vars[$1]  &= $4; $$ = vars[$1]; }
+|	variable '=' '^' expr      { vars[$1]  ^= $4; $$ = vars[$1]; }
+|	variable '=' '|' expr      { vars[$1]  ^= $4; $$ = vars[$1]; }
+|	variable '=' L_Shift expr  { vars[$1] <<= $4; $$ = vars[$1]; }
+|	variable '=' R_Shift expr  { vars[$1] >>= $4; $$ = vars[$1]; }
 |	variable                   { $$ = vars[$1]; }
+|	table_value '=' ':' expr      { *((int *)$1)   = $4; $$ = *((int *)$1); }
+|	table_value '=' '+' expr      { *((int *)$1)  += $4; $$ = *((int *)$1); }
+|	table_value '=' '-' expr      { *((int *)$1)  -= $4; $$ = *((int *)$1); }
+|	table_value '=' '*' expr      { *((int *)$1)  *= $4; $$ = *((int *)$1); }
+|	table_value '=' '&' expr      { *((int *)$1)  &= $4; $$ = *((int *)$1); }
+|	table_value '=' '^' expr      { *((int *)$1)  ^= $4; $$ = *((int *)$1); }
+|	table_value '=' '|' expr      { *((int *)$1)  ^= $4; $$ = *((int *)$1); }
+|	table_value '=' L_Shift expr  { *((int *)$1) <<= $4; $$ = *((int *)$1); }
+|	table_value '=' R_Shift expr  { *((int *)$1) >>= $4; $$ = *((int *)$1); }
+|	table_value                { $$ = *((int *) $1); }
 |	expr '?' expr ':' expr { $$ = $1 ? $3 : $5; }
 |	'(' expr ')'         { $$ = $2; }
 |	expr '%' expr {
@@ -65,6 +77,8 @@ expr: NUM { $$ = $1; }
 ;
 
 variable: Var_name { $$ = $1; }
+
+table_value: Var_name NUM { $$ = (int) parser_get_num($2, $1); }
 
 %%
 /* EOF */
