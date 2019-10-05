@@ -51,3 +51,13 @@ struct comment {
 };
 
 struct comment  *comment_setup(char *, size_t, char, char, char *);
+
+
+struct cmt_list {
+#	define CMT_LIST_CHUNK 16
+	size_t sz;
+	struct comment list[];
+};
+
+struct cmt_list *cmt_list_init(void);
+int cmt_list_add(struct cmt_list **, size_t, char, char *);

@@ -190,8 +190,37 @@ comment_setup(char *str, size_t row, char col, char type, char *metadata)
 	cmt->s[0] = type;
 	strcpy(cmt->s + 1, metadata);
 	strcat(cmt->s + 1, str);
-	return cmt;
+	return (cmt);
 };
+
+
+struct cmt_list *
+cmt_list_init(void)
+{	struct cmt_list *ret;
+	int i;
+	ret = malloc(sizeof(struct cmt_list) + (CMT_LIST_CHUNK * sizeof(struct comment)));
+	if (ret == NULL) return NULL;
+	ret->sz = CMT_LIST_CHUNK;
+	for (i = 0; i < ret->sz; i++) {
+		ret->list[i].s = NULL;
+	};
+}
+
+
+int
+cmt_list_add(struct cmt_list **cl, size_t row, char col, char *str)
+{
+	int i;
+	for (i = 0; i < (*cl)->sz; i++) {
+		if ((*cl)->list[i].s == NULL) {
+			(*cl)->list[i].row = row;
+			(*cl)->list[i].col = col;
+			(*cl)->list[i].s = str;
+			return 0;
+		};
+	};
+	return -1;
+}
 
 
 

@@ -36,6 +36,7 @@ struct {
 
 
 struct var_sheet  *sheet = NULL;
+struct cmt_list   *s_text = NULL;
 
 size_t  scroll_offset = 0;
 char  *update_rows;
@@ -47,11 +48,14 @@ static int  setup(void);
 
 static int  run(void);
 static int  input(void);
+static void  update_text(void);
+static void  call_text(void);
 static inline short int  *sel_get_num(void);
 static void  move_selection(int, int);
 static void  scroll_up(int);
 static void  scroll_down(int);
 static void  call_parser(void);
+static void  add_str_box(void);
 static void  draw_update_rows(void);
 static void  draw_update_column(size_t);
 
@@ -123,8 +127,9 @@ setup(void)
 	/* --- var init --- */
 	parser_input_str = NULL;
 	if ((sheet = vsheet_init(columns))          == NULL) die("falied to allocate");
-	if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
-	if ((update_rows = calloc(1, rows))          == NULL) die("failed to allocate");
+	if ((sheet = vsheet_add_rows(sheet, rows))  == NULL) die("failed to realloc");
+	if ((update_rows = calloc(1, rows))         == NULL) die("failed to allocate");
+	if ((s_text = cmt_list_init())              == NULL) die("falied to allocate");
 	/* --- term init --- */
 	terminal_init(); /* set input mode (call termios) */
 	terminal_buffer_enable();
@@ -145,7 +150,9 @@ setup(void)
 static int
 run(void)
 {
-	while (input() >= 0) ;
+	while (input() >= 0) {
+		update_text();
+	};
 }
 
 
@@ -166,6 +173,8 @@ input(void)
 			move_selection(0, 0);
 			break;
 		case '=': call_parser(); break;
+		case '>': add_str_box(); break;
+		case '\n': call_text();  break;
 		case 's': return 0;
 		case 'q': return -1;
 		default:  putc('\a', stderr); break;
@@ -178,6 +187,39 @@ input(void)
 static inline short int *
 sel_get_num(void) {
 	return (sheet->vals + ((scroll_offset + (sel1.row)) * sheet->cols) + sel1.col);
+}
+
+
+static void
+update_text(void)
+{
+	int i;
+	for (i = 0; i < s_text->sz; i++) {
+		if (s_text->list[i].s != NULL) draw_box_str(Grey, 5,
+		    s_text->list[i].row + 2, ((s_text->list[i].col + 1) * 6) + 1,
+		    s_text->list[i].s);
+	};
+}
+
+
+static void
+call_text(void)
+{
+	int i;
+	for (i = 0; i < s_text->sz; i++) {
+		if (s_text->list[i].s != NULL &&
+		    s_text->list[i].row == sel1.row &&
+		    s_text->list[i].col == sel1.col) {
+			parser_input_str = "";
+			yyparse(); /* call parser */
+			parser_input_str = s_text->list[i].s;
+			i = yyparse(); /* call parser */
+			if (i >= 0) *sel_get_num() = i;
+			draw_update_rows(); /* update rows with potensionally changed values */
+			move_selection(0, 0);
+			return ;
+		};
+	};
 }
 
 
@@ -214,6 +256,7 @@ move_selection(int r, int c)
 	#endif
 	draw_box_str(Aqua, 1, S_ROW(sel1), S_COL(sel1) - 1,     "[");
 	draw_box_str(Aqua, 1, S_ROW(sel1), S_COL(1 + sel1) - 1, "]");
+	update_text();
 #	undef S_COL
 #	undef S_ROW
 }
@@ -269,6 +312,23 @@ call_parser(void)
 		if (i >= 0) *sel_get_num() = i; /* -1 is error */
 		free(parser_input_str);
 		draw_update_rows(); /* update rows with potensionally changed values */
+	};
+	terminal_reinit();
+	fputs("\x1b[?25l", stderr); /* hide cursor */
+	draw_box_str(Black, 9, rows + 2, 1, "\x1b[K"); /* clear comand line area */
+	move_selection(0, 0);
+}
+
+
+static void
+add_str_box(void)
+{
+	draw_box_str(Aqua, 2, rows + 2, 5, "> "); /* draw prompt */
+	terminal_restore(); /* set terminal input to be normal */
+	fputs("\x1b[?25h", stderr); /* make cursor visible */
+	if (scanf("\n%m[^\n]", &parser_input_str) > 0) {
+	    /* TODO: blank line is not recognized as input */
+	    	cmt_list_add(&s_text, sel1.row, sel1.col, parser_input_str);
 	};
 	terminal_reinit();
 	fputs("\x1b[?25l", stderr); /* hide cursor */
