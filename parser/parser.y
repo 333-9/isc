@@ -6,8 +6,9 @@ char *parser_input_str;
 
 short int *parser_get_num(size_t r, size_t c);
 short int parser_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int));
+short int parser_assign_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int), int n);
 
-short vars[25] = {0};
+int vars[25] = {0};
 
 
 int yylex();
@@ -15,6 +16,13 @@ int yylex();
 void yyerror(char *s) {
 	return ;
 }
+
+int p_rand(int a, int b)  { return rand(); }
+int p_assign(int a, int b)  { return b; }
+int p_mod(int a, int b)  { return (a % b); }
+int p_div(int a, int b)  { return (a / b); }
+int p_ls(int a, int b)  { return (a << b); }
+int p_rs(int a, int b)  { return (a << b); }
 
 int p_add(int a, int b)  { return (a + b); }
 int p_sub(int a, int b)  { return (a - b); }
@@ -56,14 +64,66 @@ int p_min(int a, int b)  { return (a < b? (a?a:b) : (b?b:a)); }
 
 %%
 
+
 program:
 	expr '$'         { return (unsigned short int) $1; }
 |	/* NOP */        { return -1; }
 ;
 
-variable: Var_name { $$ = $1; }
+variable:
+	Var_name { $$ = (int) (vars + $1); }
+|	Var_name NUM { if(($$ = (int) parser_get_num($2, $1)) == NULL) return -1; }
+;
 
-table_value: Var_name NUM { if(($$ = (int) parser_get_num($2, $1)) == NULL) return -1; }
+assignment: variable '=' expr  { $$ = *((int *) $1)   = $3; }
+|	variable AO_add expr   { $$ = *((int *) $1)  += $3; }
+|	variable AO_sub expr   { $$ = *((int *) $1)  -= $3; }
+|	variable AO_mul expr   { $$ = *((int *) $1)  *= $3; }
+|	variable AO_div expr   { if (!$3) return -1;  $$ = *((int *) $1) /= $3; }
+|	variable AO_mod expr   { if (!$3) return -1;  $$ = *((int *) $1) %= $3; }
+|	variable AO_and expr   { $$ = *((int *) $1)  &= $3; }
+|	variable AO_or  expr   { $$ = *((int *) $1)  ^= $3; }
+|	variable AO_xor expr   { $$ = *((int *) $1)  |= $3; }
+|	variable AO_ls  expr   { $$ = *((int *) $1) <<= $3; }
+|	variable AO_rs  expr   { $$ = *((int *) $1) >>= $3; }
+;
+
+range:
+	'[' '+' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_add); }
+|	'[' '-' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_sub); }
+|	'[' '>' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_max); }
+|	'[' '<' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_min); }
+|	'[' '&' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_and); }
+|	'[' '^' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_xor); }
+|	'[' '|' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_or ); }
+|	'[' '*' Var_name NUM ':' NUM ']'  { $$ = parser_for_range($4, $6, $3, &p_mul); }
+|	'[' '/' Var_name NUM ':' NUM ']'  { return -2; } /* non valid espressions */
+|	'[' '%' Var_name NUM ':' NUM ']'  { return -2; }
+|	'[' Var_name NUM ':' NUM '~' ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_rand, $7); }
+|	'[' Var_name NUM ':' NUM '=' expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_assign, $7); }
+|	'[' Var_name NUM ':' NUM AO_add expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_add, $7); }
+|	'[' Var_name NUM ':' NUM AO_sub expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_sub, $7); }
+|	'[' Var_name NUM ':' NUM AO_mul expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_mul, $7); }
+|	'[' Var_name NUM ':' NUM AO_div expr ']'  { if ($7 == 0) return -1;
+		$$ = parser_assign_for_range($3, $5, $2, &p_div, $7); }
+|	'[' Var_name NUM ':' NUM AO_mod expr ']'  { if ($7 == 0) return -1;
+		$$ = parser_assign_for_range($3, $5, $2, &p_mod, $7); }
+|	'[' Var_name NUM ':' NUM AO_and expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_and, $7); }
+|	'[' Var_name NUM ':' NUM AO_or  expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_or , $7); }
+|	'[' Var_name NUM ':' NUM AO_xor expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_xor, $7); }
+|	'[' Var_name NUM ':' NUM AO_ls  expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_ls , $7); }
+|	'[' Var_name NUM ':' NUM AO_rs  expr ']'  {
+		$$ = parser_assign_for_range($3, $5, $2, &p_rs , $7); }
+;
 
 expr: NUM { $$ = $1; }
 |	expr '+' expr      { $$ = $1 + $3; }
@@ -88,42 +148,11 @@ expr: NUM { $$ = $1; }
 |	'!' expr           { $$ = !$2; }
 |	expr '?' expr ':' expr  { $$ = $1 ? $3 : $5; }
 |	'(' expr ')'            { $$ = $2; }
-|	variable                  { $$ = vars[$1]; }
-|	variable '='    expr      { $$ = vars[$1]   = $3; }
-|	variable AO_add expr      { $$ = vars[$1]  += $3; }
-|	variable AO_sub expr      { $$ = vars[$1]  -= $3; }
-|	variable AO_mul expr      { $$ = vars[$1]  *= $3; }
-|	variable AO_div expr      { if (!$3) return -1;  $$ = vars[$1] /= $3; }
-|	variable AO_mod expr      { if (!$3) return -1;  $$ = vars[$1] %= $3; }
-|	variable AO_and expr      { $$ = vars[$1]  &= $3; }
-|	variable AO_or  expr      { $$ = vars[$1]  |= $3; }
-|	variable AO_xor expr      { $$ = vars[$1]  ^= $3; }
-|	variable AO_ls  expr      { $$ = vars[$1] >>= $3; }
-|	variable AO_rs  expr      { $$ = vars[$1] >>= $3; }
-|	table_value                  { $$ = *((int *) $1); }
-|	table_value '='    expr      { $$ = *((int *) $1)   = $3; }
-|	table_value AO_add expr      { $$ = *((int *) $1)  += $3; }
-|	table_value AO_sub expr      { $$ = *((int *) $1)  -= $3; }
-|	table_value AO_mul expr      { $$ = *((int *) $1)  *= $3; }
-|	table_value AO_div expr      { if (!$3) return -1;  $$ = *((int *) $1) /= $3; }
-|	table_value AO_mod expr      { if (!$3) return -1;  $$ = *((int *) $1) %= $3; }
-|	table_value AO_and expr      { $$ = *((int *) $1)  &= $3; }
-|	table_value AO_or  expr      { $$ = *((int *) $1)  ^= $3; }
-|	table_value AO_xor expr      { $$ = *((int *) $1)  |= $3; }
-|	table_value AO_ls  expr      { $$ = *((int *) $1) <<= $3; }
-|	table_value AO_rs  expr      { $$ = *((int *) $1) >>= $3; }
-|	'[' '+' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_add); }
-|	'[' '-' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_sub); }
-|	'[' '>' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_max); }
-|	'[' '<' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_min); }
-|	'[' '&' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_and); }
-|	'[' '^' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_xor); }
-|	'[' '|' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_or ); }
-|	'[' '*' Var_name NUM ':' NUM ']'   { $$ = parser_for_range($4, $6, $3, &p_mul); }
-|	'[' '/' Var_name NUM ':' NUM ']'   { return -2; } /* non valid espressions */
-|	'[' '%' Var_name NUM ':' NUM ']'   { return -2; }
-|	{ return -1; }
+|	variable                { $$ = *((int *) $1); }
+|	assignment              { $$ = $1; }
+|	range                   { $$ = $1; }
 ;
+
 
 %%
 /* EOF */

@@ -41,40 +41,38 @@ int gg_give_input(char *buf, int *r_sz, int sz) {
 
 %%
 
-[0-9]{1,5}       {
+[0-9]{1,5} {
 		yylval = atoi(yytext);
 		return NUM;
 	}
 
-"<<"             { return L_Shift; }
-">>"             { return R_Shift; }
-"&&"             { return AND; }
-"||"             { return OR;  }
-"^^"             { return XOR; }
-"=="             { return EQ_cmp; }
-"!="             { return NE_cmp; }
-">="             { return GE_cmp; }
-"<="             { return LE_cmp; }
+[a-zA-Z]  { yylval = (*yytext | 32) - 'a'; return Var_name; }
 
-"+="             { return AO_add; }
-"-="             { return AO_sub; }
-"*="             { return AO_mul; }
-"/="             { return AO_div; }
-"%="             { return AO_mod; }
-"&="             { return AO_and; }
-"|="             { return AO_or;  }
-"^="             { return AO_xor; }
-"<<="            { return AO_ls;  }
-">>="            { return AO_rs;  }
+"<<"   { return L_Shift; }
+">>"   { return R_Shift; }
+"&&"   { return AND; }
+"||"   { return OR;  }
+"^^"   { return XOR; }
+"=="   { return EQ_cmp; }
+"!="   { return NE_cmp; }
+">="   { return GE_cmp; }
+"<="   { return LE_cmp; }
 
-[-+/*%&^|?:=!]    { return *yytext; }
-[()\[\]<>]       { return *yytext; }
+"+="   { return AO_add; }
+"-="   { return AO_sub; }
+"*="   { return AO_mul; }
+"/="   { return AO_div; }
+"%="   { return AO_mod; }
+"&="   { return AO_and; }
+"|="   { return AO_or;  }
+"^="   { return AO_xor; }
+"<<="  { return AO_ls;  }
+">>="  { return AO_rs;  }
 
-[a-zA-Z]         { yylval = (*yytext | 32) - 'a'; return Var_name; }
+[-+/*%&^|?:=!<>~]   { return *yytext; }
+[()\[\]\{\}]        { return *yytext; }
 
-[ \t]+	         { ; }
-\n               { return '$'; }
-
-.                { return '$'; }
+[ \t]+	{ ; }
+\n|"//" { return '$'; }
 
 %%

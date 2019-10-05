@@ -47,7 +47,7 @@ short int  *vsheet_get_num(struct var_sheet *, size_t, size_t);
 struct comment {
 	size_t row;
 	char   col;
-	char s[];
+	char *s;
 };
 
 struct comment  *comment_setup(char *, size_t, char, char, char *);

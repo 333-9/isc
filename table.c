@@ -171,7 +171,8 @@ vsheet_set_box(struct var_sheet *s, size_t row, size_t col, box_sz val)
 
 
 short int *
-vsheet_get_num(struct var_sheet *s, size_t r, size_t c) {
+vsheet_get_num(struct var_sheet *s, size_t r, size_t c)
+{
 	if (r >= s->rows || c >= s->cols) return NULL;
 	return (s->vals + (r * s->cols) + c);
 }
@@ -180,15 +181,15 @@ vsheet_get_num(struct var_sheet *s, size_t r, size_t c) {
 
 
 struct comment *
-comment_setup(char *s, size_t row, char col, char type, char *metadata)
+comment_setup(char *str, size_t row, char col, char type, char *metadata)
 {	struct comment *cmt;
-	cmt = malloc(sizeof(struct comment) + 1 + strlen(metadata) + strlen(s) + 1);
-	if (cmt == NULL) return NULL;
+	if ((cmt = malloc(sizeof(struct comment))) == NULL) return NULL;
 	cmt->row = row;
 	cmt->col = col;
+	if ((cmt->s = malloc(strlen(str) + strlen(metadata) + 2)) == NULL) return NULL;
 	cmt->s[0] = type;
-	strcpy(cmt + 1, metadata);
-	strcpy(cmt + 1 + strlen(metadata), s);
+	strcpy(cmt->s + 1, metadata);
+	strcat(cmt->s + 1, str);
 	return cmt;
 };
 

@@ -76,17 +76,40 @@ parser_get_num(size_t r, size_t c)
 short int
 parser_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int))
 {
-	short int *p, ret = 0;
-	p = vsheet_get_num(sheet, r1, c);
-	if (r1 > r2) r2 = r1 - r2;
-	else r2 -= r1;
-	for (r2 += 1; r2 > 0; r2--) {
-		//printf("%i, %i ",  r2, r1);
+	short int *p, ret = 0, r;
+	if (r1 > r2) {
+		p = vsheet_get_num(sheet, r2, c);
+		r = r2 - r1;
+	} else {
+		p = vsheet_get_num(sheet, r1, c);
+		r = r1 - r2;
+	};
+	for (r += 1; r > 0; r--) {
 		ret = (*func)(ret, *p);
 		p += sheet->cols;
 	};
-	draw_update_column(c);
+	//draw_update_column(c);
 	return ret;
+}
+
+short int
+parser_assign_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int), int n)
+{
+	short int *p, r;
+	if (r1 > r2) {
+		p = vsheet_get_num(sheet, r2, c);
+		r = r1 - r2;
+	} else {
+		p = vsheet_get_num(sheet, r1, c);
+		r = r2 - r1;
+	};
+	//printf("%i, %i, %i; ",  r2, r1, r);
+	for (r += 1; r > 0; r--) {
+		*p = (*func)(*p, n);
+		p += sheet->cols;
+	};
+	draw_update_column(c);
+	return 0;
 }
 
 /* --- */
@@ -191,7 +214,8 @@ move_selection(int r, int c)
 	#endif
 	draw_box_str(Aqua, 1, S_ROW(sel1), S_COL(sel1) - 1,     "[");
 	draw_box_str(Aqua, 1, S_ROW(sel1), S_COL(1 + sel1) - 1, "]");
-#	undef S_COL S_ROW
+#	undef S_COL
+#	undef S_ROW
 }
 
 
