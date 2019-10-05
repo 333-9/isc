@@ -21,21 +21,33 @@ struct var_sheet {
 
 
 
-Sheet csheet_init(size_t);
-void csheet_free(Sheet);
-int csheet_add_rows(Sheet, size_t);
-static int csheet_add_num_col(Sheet, Col);
-static int csheet_add_str_col(Sheet, Col);
-int csheet_add_num(Sheet, Col, Row, int);
-int csheet_add_str(Sheet, Col, Row, const char *);
-int csheet_set_str(Sheet, Col, Row, char *);
-int   csheet_get_num(Sheet, Col, Row);
-char *csheet_get_str(Sheet, Col, Row);
+Sheet  csheet_init(size_t);
+void  csheet_free(Sheet);
+int  csheet_add_rows(Sheet, size_t);
+static int  csheet_add_num_col(Sheet, Col);
+static int  csheet_add_str_col(Sheet, Col);
+int  csheet_add_num(Sheet, Col, Row, int);
+int  csheet_add_str(Sheet, Col, Row, const char *);
+int  csheet_set_str(Sheet, Col, Row, char *);
+int  csheet_get_num(Sheet, Col, Row);
+char  *csheet_get_str(Sheet, Col, Row);
 
 
 
-struct var_sheet * vsheet_init(size_t);
-void               vsheet_free(struct var_sheet *);
-struct var_sheet * vsheet_set_box(struct var_sheet *, size_t, size_t, box_sz);
-struct var_sheet * vsheet_add_rows(struct var_sheet *, size_t);
-short int * vsheet_get_num(struct var_sheet *, size_t, size_t);
+
+struct var_sheet  *vsheet_init(size_t);
+void  vsheet_free(struct var_sheet *);
+struct var_sheet  *vsheet_set_box(struct var_sheet *, size_t, size_t, box_sz);
+struct var_sheet  *vsheet_add_rows(struct var_sheet *, size_t);
+short int  *vsheet_get_num(struct var_sheet *, size_t, size_t);
+
+
+
+
+struct comment {
+	size_t row;
+	char   col;
+	char s[];
+};
+
+struct comment  *comment_setup(char *, size_t, char, char, char *);

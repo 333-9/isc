@@ -179,6 +179,22 @@ vsheet_get_num(struct var_sheet *s, size_t r, size_t c) {
 
 
 
+struct comment *
+comment_setup(char *s, size_t row, char col, char type, char *metadata)
+{	struct comment *cmt;
+	cmt = malloc(sizeof(struct comment) + 1 + strlen(metadata) + strlen(s) + 1);
+	if (cmt == NULL) return NULL;
+	cmt->row = row;
+	cmt->col = col;
+	cmt->s[0] = type;
+	strcpy(cmt + 1, metadata);
+	strcpy(cmt + 1 + strlen(metadata), s);
+	return cmt;
+};
+
+
+
+
 /*
 int
 main()

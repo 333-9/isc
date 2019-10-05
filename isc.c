@@ -53,6 +53,7 @@ static void  scroll_up(int);
 static void  scroll_down(int);
 static void  call_parser(void);
 static void  draw_update_rows(void);
+static void  draw_update_column(size_t);
 
 static void  restore(void);
 static void  die_line_num(int, const char *);
@@ -70,6 +71,22 @@ parser_get_num(size_t r, size_t c)
 		update_rows[r - scroll_offset] = 1;
 	};
 	return vsheet_get_num(sheet, r, c);
+}
+
+short int
+parser_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int))
+{
+	short int *p, ret = 0;
+	p = vsheet_get_num(sheet, r1, c);
+	if (r1 > r2) r2 = r1 - r2;
+	else r2 -= r1;
+	for (r2 += 1; r2 > 0; r2--) {
+		//printf("%i, %i ",  r2, r1);
+		ret = (*func)(ret, *p);
+		p += sheet->cols;
+	};
+	draw_update_column(c);
+	return ret;
 }
 
 /* --- */
@@ -94,7 +111,7 @@ setup(void)
 	/* docorations: */
 	draw_column_numbering(Red, 1, 4, 'a', 'a' + columns - 1);
 	draw_row_numbering(Red, 2, 1, 0, rows - 1);
-	draw_box_num(Grey, 5, 1, 1, sheet->rows);
+	//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
 	sel1 = (struct position){ .col = 0, .row = 0 };
 	move_selection(0, 0);
 }
@@ -206,7 +223,7 @@ scroll_down(int r)
 		sheet = vsheet_add_rows(sheet, 1); /* realloc sheet */
 	draw_column_numbering(Red, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
 	draw_box_str(Red, 6, 1, 1, "      "); /* clear top left corner */
-	draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
+	//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
 	draw_table_num(Grey, 5, rows, 7, 1,
 	    1, columns, sheet->vals + ((rows + scroll_offset - 1) * sheet->cols));
 	    /* draw new row */
@@ -246,6 +263,19 @@ draw_update_rows(void)
 			draw_table_num(Grey, 5, i + 2, 7, 1,
 			    1, columns,
 			    sheet->vals + ((i + scroll_offset) * sheet->cols));
+		};
+	};
+}
+
+
+void
+draw_update_column(size_t c)
+{
+	int i, n;
+	if (c > columns) return ;
+	for (i = 0; i < rows; i++) {
+		if ((n = *vsheet_get_num(sheet, i, c)) != 0) {
+			draw_box_num(Grey, 5, i + 2, (6 * (c + 1)) + 1, n);
 		};
 	};
 }
