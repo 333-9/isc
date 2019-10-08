@@ -5,33 +5,22 @@
 
 extern int yylval;
 extern char *parser_input_str;
-//int gg_give_input(char *buf, int *r_sz, int sz);
+
 
 #undef YY_INPUT
-#define YY_INPUT(b, m, n) gg_give_input(b, &(m), n)
-int gg_give_input(char *buf, int *r_sz, int sz) {
-	static char *text = NULL, *p = NULL;
-	static size_t size = 0;
-	if (text != parser_input_str) {
-		text = parser_input_str;
-		p = text;
-		size = strlen(p);
-	};
-	if (size == 0) {
-		*r_sz = 1;
-		*buf = '\n';
-		return -1;
-	} else if (sz > size) {
-		*r_sz = size;
-		memcpy(buf, p, size);
-		size = 0;
+#define YY_INPUT(b, m, n) (m = _input(b, n))
+size_t _input(char *buf, int sz) {
+	size_t size;
+	if (parser_input_str == NULL) {
+		return 0;
+	} else if (sz > (size = 1 + strlen(parser_input_str))) {
+		strcpy(buf, parser_input_str);
+		buf[size] = '\n';
+		return (size + 1);
 	} else {
-		size -= sz;
-		memcpy(buf, p, sz);
-		p += sz;
-		*r_sz = sz;
+		strncpy(buf, parser_input_str, sz);
+		return (sz);
 	};
-	return 0;
 }
 
 %}
@@ -73,6 +62,6 @@ int gg_give_input(char *buf, int *r_sz, int sz) {
 [()\[\]\{\}]        { return *yytext; }
 
 [ \t]+	{ ; }
-\n|"//" { return '$'; }
+("//".*)*\n { return '$'; }
 
 %%

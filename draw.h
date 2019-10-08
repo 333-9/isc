@@ -1,9 +1,6 @@
 #ifndef DRAW_H
 #define DRAW_H
 
-
-
-
 enum Color {
 	Black   = 0,
 	Red     = 1,
@@ -36,8 +33,5 @@ void draw_table_num(enum Color, int, short, short, short gap,
 
 void draw_row_numbering(enum Color, short, short, short, short);
 void draw_column_numbering(enum Color, short, short, short, short);
-
-
-
 
 #endif

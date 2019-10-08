@@ -56,7 +56,7 @@ draw_table_num(enum Color color, int width, short row, short col, short gap,
 		fprintf(stderr, "\x1b[%hu;%huH\x1b[38;5;%hhum",
 		    row, col, color);
 		sprintf(line, "%s\x1b[%hiC", "%*hu", gap);
-		for (r = 0; r < n_rows; r++) {
+		for (r = 1; r <= n_rows; r++) {
 			for (c = 0; c < n_cols; c++) {
 				if (*table == 0) {
 					fprintf(stderr, "\x1b[%hiC", gap + width);

@@ -1,3 +1,6 @@
+#ifndef TABLE_H
+#define TABLE_H
+
 struct csheet {
 	size_t height;
 #	define Ncol 0x100
@@ -7,16 +10,6 @@ struct csheet {
 typedef struct csheet * Sheet;
 typedef unsigned char Col;
 typedef size_t Row;
-
-
-typedef short int box_sz;
-
-struct var_sheet {
-	struct var_sheet *next;
-	size_t cols;
-	size_t rows;
-	box_sz vals[];
-};
 
 
 
@@ -34,6 +27,15 @@ char  *csheet_get_str(Sheet, Col, Row);
 
 
 
+
+typedef short int box_sz;
+
+struct var_sheet {
+	struct var_sheet *next;
+	size_t cols;
+	size_t rows;
+	box_sz vals[];
+};
 
 struct var_sheet  *vsheet_init(size_t);
 void  vsheet_free(struct var_sheet *);
@@ -60,4 +62,12 @@ struct cmt_list {
 };
 
 struct cmt_list *cmt_list_init(void);
-int cmt_list_add(struct cmt_list **, size_t, char, char *);
+//int cmt_list_add(struct cmt_list **, size_t, char, char *); /* depricatesd */
+
+struct comment *cmt_list_get(struct cmt_list **cl, int r, int c);
+struct comment *cmt_list_new(struct cmt_list **cl, int r, int c);
+
+
+#endif /* def TABLE_H */
+
+/* EOF */
