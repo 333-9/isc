@@ -11,3 +11,10 @@ parser/y.tab.h: y.tab.h
 	ln -srf y.tab.h parser/
 
 parser/scanner.o: parser/y.tab.h
+
+.PHONY: install
+
+install: isc
+	mkdir -p /usr/local/bin/
+	cp -f isc /usr/local/bin/
+	chmod 755 /usr/local/bin/isc

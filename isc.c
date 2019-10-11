@@ -107,12 +107,10 @@ setup(char *argv[])
 	rows = get_term_size() - 2;
 	if (argv[1] != NULL) {
 		if ((sheet = file_read(argv[1]))  == NULL) {
-			printf("auto 1 ");
 			if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
 			if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
 		};
 	} else {
-		printf("auto 2 ");
 		if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
 		if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
 	};
@@ -166,7 +164,7 @@ run(void)
 		case '=': box_set_num();           break;
 		case '+': box_add_num();           break;
 		case '\n': parse_text();           break;
-		case 'w': if (file_write(sheet) == -1) printf("here2"); break;
+		case 'w': file_write(sheet)        break;
 		case 'q': return 0;
 		default:  putc('\a', stderr); break;
 		};
