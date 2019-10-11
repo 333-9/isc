@@ -164,7 +164,7 @@ run(void)
 		case '=': box_set_num();           break;
 		case '+': box_add_num();           break;
 		case '\n': parse_text();           break;
-		case 'w': file_write(sheet)        break;
+		case 'w': file_write(sheet);       break;
 		case 'q': return 0;
 		default:  putc('\a', stderr); break;
 		};
