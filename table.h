@@ -28,7 +28,7 @@ char  *csheet_get_str(Sheet, Col, Row);
 
 
 
-typedef short int box_sz;
+typedef int box_sz;
 
 struct var_sheet {
 	struct var_sheet *next;
@@ -41,7 +41,7 @@ struct var_sheet  *vsheet_init(size_t);
 void  vsheet_free(struct var_sheet *);
 struct var_sheet  *vsheet_set_box(struct var_sheet *, size_t, size_t, box_sz);
 struct var_sheet  *vsheet_add_rows(struct var_sheet *, size_t);
-short int  *vsheet_get_num(struct var_sheet *, size_t, size_t);
+box_sz  *vsheet_get_num(struct var_sheet *, size_t, size_t);
 
 
 

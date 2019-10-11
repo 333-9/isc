@@ -1,7 +1,7 @@
 CC = tcc
 
-isc: isc.c parser/scanner.o y.tab.o terminal.c draw.o table.o parser/range.o
-	$(CC) -o $@ isc.c terminal.c parser/scanner.o y.tab.o draw.o table.o parser/range.o
+isc: isc.c parser/scanner.o y.tab.o terminal.c draw.o table.o parser/range.o files.o
+	$(CC) -o $@ isc.c terminal.c parser/scanner.o y.tab.o draw.o table.o parser/range.o files.o
 
 y.tab.o: y.tab.c
 y.tab.h: y.tab.c

@@ -62,7 +62,7 @@ terminal_init(void)
 	tcgetattr(0, &term_attr_new);
 	term_attr_new.c_lflag = term_attr_new.c_lflag ^ ICANON ^ ECHO;
 	term_attr_new.c_cc[VMIN] = 0;
-	term_attr_new.c_cc[VTIME] = 1;
+	term_attr_new.c_cc[VTIME] = 3;
 	term_attr_new.c_lflag &= ICANON;
 	tcsetattr(0, TCSANOW, &term_attr_new);
 }

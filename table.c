@@ -170,7 +170,7 @@ vsheet_set_box(struct var_sheet *s, size_t row, size_t col, box_sz val)
 }
 
 
-short int *
+box_sz *
 vsheet_get_num(struct var_sheet *s, size_t r, size_t c)
 {
 	if (r >= s->rows || c >= s->cols) return NULL;

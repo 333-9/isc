@@ -49,7 +49,7 @@ parser_get_num(size_t r, size_t c)
 int
 parser_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int))
 {
-	short int *p, ret = 0, r;
+	int *p, ret = 0, r;
 	if (r1 < row_changed_first) row_changed_first = r1;
 	if (r2 > row_changed_last)  row_changed_last  = r2;
 	if (r1 > r2) {
@@ -73,7 +73,7 @@ parser_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int))
 int
 parser_assign_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int), int n)
 {
-	short int *p, r;
+	int *p, r;
 	if (r1 < row_changed_first) row_changed_first = r1;
 	if (r2 > row_changed_last)  row_changed_last  = r2;
 	if (r1 > r2) {

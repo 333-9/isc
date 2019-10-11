@@ -10,13 +10,12 @@
 
 #include "draw.h"
 
-
-
-
-static unsigned char
-num_char_size(int i) {
-	return (1 + (i / 10 ? num_char_size(i / 10): 0));
+static long pow(a, b) {
+	return(b == 1? a : a * pow(a, b - 1));
 }
+
+
+
 
 void
 draw_box_str(enum Color color, int width, short row, short col, const char *text)
@@ -33,21 +32,21 @@ draw_box_str(enum Color color, int width, short row, short col, const char *text
 
 
 void
-draw_box_num(enum Color color, int width, short row, short col, short int num)
+draw_box_num(enum Color color, int width, short row, short col, int num)
 {
-	if (width >= 5) {
-		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%*hu",
-		    row, col, color, width, (short int) num);
+	if ((unsigned int) num < pow(10, width)) {
+		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%*u",
+		    row, col, color, width, num);
 	} else if (width > 0) {
 		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%.*s",
-		    row, col, color, width, "****");
+		    row, col, color, width, "******");
 	};
 }
 
 
 void
 draw_table_num(enum Color color, int width, short row, short col, short gap,
-               size_t n_rows, size_t n_cols, short int *table)
+               size_t n_rows, size_t n_cols, int *table)
 {
 	int r, c;
 	char line[20];
@@ -55,13 +54,15 @@ draw_table_num(enum Color color, int width, short row, short col, short gap,
 	if (width >= 5) {
 		fprintf(stderr, "\x1b[%hu;%huH\x1b[38;5;%hhum",
 		    row, col, color);
-		sprintf(line, "%s\x1b[%hiC", "%*hu", gap);
+		sprintf(line, "%s\x1b[%hiC", "%*u", gap);
 		for (r = 1; r <= n_rows; r++) {
 			for (c = 0; c < n_cols; c++) {
 				if (*table == 0) {
 					fprintf(stderr, "\x1b[%hiC", gap + width);
-				} else {
+				} else if ((unsigned int) *table < pow(10, width)) {
 					fprintf(stderr, line, width, *table);
+				} else {
+					fprintf(stderr, "%.*s\x1b[%hiC", width, "******", gap);
 				};
 				table++;
 			};
@@ -73,17 +74,18 @@ draw_table_num(enum Color color, int width, short row, short col, short gap,
 }
 
 
+/*
 void
-draw_column_num(enum Color color, int width, short row, short col, short int *arr, size_t sz)
+draw_column_num(enum Color color, int width, short row, short col, int *arr, size_t sz)
 {
 	int i;
 	char line[20];
 	if (width >= 5) {
-		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%*hu",
-		    row, col, color, width, (short int)arr[0]);
-		sprintf(line, "\x1b[B\x1b[%huD%s", (short) width, "%*hu");
+		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%*u",
+		    row, col, color, width, arr[0]);
+		sprintf(line, "\x1b[B\x1b[%huD%s", (short) width, "%*u");
 		for (i = 1; i < sz; i++)
-			fprintf(stderr, line, width, (short int)arr[i]);
+			fprintf(stderr, line, width, arr[i]);
 	} else if (width > 0) {
 		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%-.*s",
 		    row, col, color, width, "****");
@@ -92,6 +94,7 @@ draw_column_num(enum Color color, int width, short row, short col, short int *ar
 			fputs(line, stderr);
 	};
 }
+*/
 
 
 void
@@ -113,10 +116,10 @@ void
 draw_column_numbering(enum Color c, short row, short col, short c1, short c2)
 {
 	//fputs("      ", stderr);
-	fprintf(stderr, "\x1b[%hu;%huH\x1b[38;5;%hhum     ", row, col, c, c1);
+	fprintf(stderr, "\x1b[%hu;%huH\x1b[38;5;%hhum     %c", row, col, c, c1++);
 	for (; c1 <= c2; c1++) {
-		putc(c1, stderr);
 		fputs("     ", stderr);
+		putc(c1, stderr);
 	};
 }
 

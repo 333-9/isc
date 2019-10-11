@@ -51,8 +51,8 @@ int yylex();
 %%
 
 
-program:
-	expr '$'         { if (parser_ret != NULL) *parser_ret = $1; return 0; }
+program: '$'             { return 0; }
+|	expr '$'         { if (parser_ret != NULL) *parser_ret = $1; return 0; }
 |	/* NOP */        { return -1; }
 ;
 
