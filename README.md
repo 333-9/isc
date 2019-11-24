@@ -18,12 +18,14 @@ to install run (as root if necessary):
 
 	make instal
 
+
 Running isc
 -----------
 isc takes just one command like argument, it is the file name
 (if no filename is given isc writes into out.isc). example:
 
 	isc mysc.isc
+
 
 Using isc
 ----------
@@ -41,20 +43,29 @@ most C like expressions are suported
 C++ style comments `//.*$` are suported.
 there are 25 variables `a-z`.
 cells can be addsseres as `[a-z][0-9]+`.
-range operators are operators that work on a range of numbers
-in a single column `[> c0:10]  // finds largest value in column c`,
+range operators are operators that work on a range of numbers in a single column.
 they are:
-	- `[> cr:r]` larges value
-	- `[< cr:r]` smalles value
-	- `[* cr:r]` moltiply all nonzero values
-	- `[+ cr:r]` add all values
-	- `[- cr:r]` substract all values
-	- `[& cr:r]` and
-	- `[| cr:r]` or
-	- `[^ cr:r]` xor
-range assignment operators are similar to assignmest oprerators, but return 0:
-	- `[cr:r = a]`
-	- `[cr:r += a]`
-	- `[cr:r *= a]`
-	...
-	- `[cr:r ~]` assigns a random value
+	- `>` larges value
+	- `<` smalles value
+	- `*` moltiply all nonzero values
+	- `+` add all values
+	- `-` substract all values
+	- `&` and
+	- `|` or
+	- `^` xor
+range assignment operators are similar to assignmest oprerators, but return 0
+`=, +=, *=, ...`, `~` assigns a random value to a range
+
+
+File format
+-----------
+isc format is made to be human readable.
+lines represent rows and columns are separated by `,`. each item can contain
+a number or `,` (or newline) terminated string starting with `>`, optionaly preceedet
+by a number. lines starting with `#` are ignored.
+example:
+```
+# contains random numbers and hello world
+1563,55,>hello
+8645,3,0>world,>!,
+```

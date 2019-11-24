@@ -30,38 +30,52 @@ size_t _input(char *buf, int sz) {
 
 %%
 
-[0-9]{1,5} {
-		yylval = atoi(yytext);
-		return NUM;
-	}
 
-[a-zA-Z]  { yylval = (*yytext | 32) - 'a'; return Var_name; }
+\'[ -~]\'     { yylval = *(yytext + 1); return NUM; }
+"0"           { yylval = 0; return NUM; }
+[1-9][0-9]*   { yylval = strtol(yytext, NULL, 10);  return NUM; }
+0[0-9]+       { yylval = strtol(yytext, NULL,  8);  return NUM; }
+0x[0-9a-f]+   { yylval = strtol(yytext, NULL, 16);  return NUM; }
 
-"<<"   { return L_Shift; }
-">>"   { return R_Shift; }
-"&&"   { return AND; }
-"||"   { return OR;  }
-"^^"   { return XOR; }
-"=="   { return EQ_cmp; }
-"!="   { return NE_cmp; }
-">="   { return GE_cmp; }
-"<="   { return LE_cmp; }
+[a-zA-Z]    { yylval = (*yytext | 32) - 'a'; return Var_name; }
 
-"+="   { return AO_add; }
-"-="   { return AO_sub; }
-"*="   { return AO_mul; }
-"/="   { return AO_div; }
-"%="   { return AO_mod; }
-"&="   { return AO_and; }
-"|="   { return AO_or;  }
-"^="   { return AO_xor; }
-"<<="  { return AO_ls;  }
-">>="  { return AO_rs;  }
+"min"    return F_min;
+"max"    return F_max;
+"count"  return F_count;
 
-[-+/*%&^|?:=!<>~]   { return *yytext; }
+"pow"    return F_pow;
+"abs"    return F_abs;
+"avg"    return F_avg;
+
+"<<"    return O_lsh;
+">>"    return O_rsh;
+"**"    return O_pow;
+
+"!"|"not"     return L_not;
+"&&"|"and"    return L_and;
+"||"|"or"     return L_or;
+"^^"|"xor"    return L_xor;
+
+"=="    return C_eq;
+"!="    return C_ne;
+">="    return C_ge;
+"<="    return C_le;
+
+"="     return A_set;
+"+="    return A_add;
+"-="    return A_sub;
+"*="    return A_mul;
+"/="    return A_div;
+"%="    return A_mod;
+"&="    return A_and;
+"|="    return A_or;
+"^="    return A_xor;
+"<<="   return A_ls;
+">>="   return A_rs;
+
+[-+/*%&^|?:<>~,._]   { return *yytext; }
 [()\[\]\{\}]        { return *yytext; }
 
 [ \t]+	{ ; }
-("//".*)*\n { return '$'; }
-
+("//".*)*\n { return '$'; } 
 %%

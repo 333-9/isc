@@ -118,7 +118,7 @@ setup(char *argv[])
 	/* --- term init --- */
 	terminal_init();
 	terminal_buffer_enable();
-	/* docorations: */
+	/* - draw - */
 	draw_column_numbering(C_ind, 1, 4, 'a', 'a' + columns - 1);
 	draw_row_numbering(C_ind, 2, 1, 0, rows - 1);
 	draw_table_num(C_number, 5, 2, 7, 1, sheet->rows, columns, sheet->vals);
@@ -135,6 +135,50 @@ get_term_size(void)
 	return sz.ws_row;
 }
 
+/*
+int
+csv_string(FILE *stream)
+{
+	int i;
+	char c;
+	char *str = NULL;
+	for (;;) {
+		if ((c = fgetc(stream) < 0) return -1
+		for (i = 0; i < sizeof(csv_sep); i++) {
+			if (c == csv_sep[i]) return 0; // ignore strings for now
+		};
+	};
+}
+
+int
+csv_parse(FILE *stream)
+{
+	int val = 0;
+	int val_sign = 0;
+	int row, col;
+	int i;
+	char c;
+	for (row = col = 0; (c = fgetc(stream)) > 0;) {
+		if (c == csv_str_start) {
+		} else if (c == '-') {
+			val_sign = 1;
+		} else if (c == '+') {
+			continue;
+		};
+		for ( ; c <= '9' && c >= '0'; (c = fgetc(stream) > 0) {
+			val *= 10;
+			val += c - '0';
+		};
+csv_end:
+		if (c == csv_del) {
+			// store value
+		} else if (c == '\n' || c == '\0') {
+			// next row
+		};
+	};
+}
+*/
+
 
 
 
@@ -142,6 +186,7 @@ static int
 run(void)
 {
 	char c;
+	int count = 0;
 	while (1) {
 		update_text();
 		update_nums(row_changed_first, row_changed_last);
@@ -156,23 +201,53 @@ run(void)
 			update_text();
 		};
 		switch (c) {
-		case 'h': move_selection( 0, -1);  break;
-		case 'l': move_selection( 0,  1);  break;
-		case 'k': move_selection(-1,  0);  break;
-		case 'j': move_selection( 1,  0);  break;
-		case '>': box_set_text();          break;
-		case '=': box_set_num();           break;
-		case '+': box_add_num();           break;
-		case '\n': parse_text();           break;
-		case 'w': file_write(sheet);       break;
+		case '0': /* FALLTHROW */
+			if (count == 0) {
+				count = -1;
+				break;
+			};
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			if (count >= 1000000) break;
+			count *= 10;
+			count += c - '0';
+			break;
+		case 'h': move_selection( 0, -(count ? count : 1)); count = 0; break;
+		case 'l': move_selection( 0,  (count ? count : 1)); count = 0; break;
+		case 'k': move_selection(-(count ? count : 1),  0); count = 0; break;
+		case 'j': move_selection( (count ? count : 1),  0); count = 0; break;
+		case '>': box_set_text(); break;
+		case '=': box_set_num();  break;
+		case '+': box_add_num();  break;
+		case '\n':
+			if (count != 0) {
+				*sel_get_num() = count == -1 ? 0 : count;
+				count = 0;
+				move_selection(1, 0);
+				break;
+			} else {
+				parse_text();
+				break;
+			};
+		case 'w': file_write(sheet); break;
 		case 'q': return 0;
-		default:  putc('\a', stderr); break;
+		default:
+			putc('\a', stderr);
+			count = 0;
+			break;
 		};
 	};
 }
 
 
-/* (0,0) is valid and used to update the selected box value */
+/* (0,0) is valid and used to update the selected box */
 static void
 move_selection(int r, int c)
 {
@@ -190,9 +265,9 @@ move_selection(int r, int c)
 	draw_box_str(Black, 9,  rows + 2, 1, "\x1b[K"); /* clear comand line area */
 	update_cursor_text(0); /* draw prev text */
 	/* move cursor: */
-	if        (c < 0 && (sel1.col + c) >= 0) { sel1.col += c;
-	} else if (c > 0 && (sel1.col + c) < (columns)) { sel1.col += c;
-	} else if (r < 0) { scroll_up(r);
+	if        (c < 0) { sel1.col = ((sel1.col + c) >= 0) ? sel1.col + c : 0;
+	} else if (c > 0) { sel1.col = ((sel1.col + c) < (columns)) ? sel1.col + c : columns - 1;
+	} else if (r < 0) { scroll_up(-r);
 	} else if (r > 0) { scroll_down(r);
 	};
 	/* draw cursor: */
@@ -211,37 +286,50 @@ move_selection(int r, int c)
 static void
 scroll_up(int r)
 {
-	if ((sel1.row + r) >= 0) return (void)(sel1.row += r);
-	if (scroll_offset <= 0) return ;
-	// TODO: make it variable (dependent on 'r')
-	fputs("\x1b[T", stderr); /* scroll Down */
-	draw_box_str(Black, 9, rows + 2, 1, "\x1b[K"); /* clear command line area */
-	draw_column_numbering(C_ind, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
-	//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
-	draw_box_str(Black, 9, 2, 6, "\x1b[K"); /* clear prev row numbering */
-	scroll_offset -= 1;
-	draw_box_num(C_ind, 5, 2, 1, scroll_offset); /* draw new row numbering */
-	draw_table_num(C_number, 5, 2, 7, 1,
-	    1, columns, sheet->vals + (scroll_offset * sheet->cols)); /* draw new row */
+	sel1.row -= r;
+	if (sel1.row >= 0) {
+		return ;
+	};
+	r = -sel1.row;
+	sel1.row = 0;
+	for (; scroll_offset && r; r--) {
+		fputs("\x1b[T", stderr); /* scroll Down */
+		draw_box_str(Black, 9, rows + 2, 1, "\x1b[K"); /* clear command line area */
+		draw_column_numbering(C_ind, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
+		//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
+		draw_box_str(Black, 9, 2, 6, "\x1b[K"); /* clear prev row numbering */
+		scroll_offset -= 1;
+		draw_box_num(C_ind, 5, 2, 1, scroll_offset); /* draw new row numbering */
+		draw_table_num(C_number, 5, 2, 7, 1,
+		    1, columns, sheet->vals + (scroll_offset * sheet->cols)); /* draw new row */
+	};
 }
 
 
 static void
 scroll_down(int r)
 {
-	if ((sel1.row + r) < (rows)) return (void)(sel1.row += r);
-	// TODO: make it variable (dependent on 'r')
-	fputs("\x1b[S", stderr); /* scroll Up */
-	if ((sheet->rows - 1) <= (sel1.row + scroll_offset))
-		sheet = vsheet_add_rows(sheet, 1); /* realloc sheet */
-	draw_column_numbering(C_ind, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
-	draw_box_str(C_ind, 6, 1, 1, "      "); /* clear top left corner */
-	//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
-	draw_table_num(C_number, 5, rows + 1, 7, 1,
-	    1, columns, sheet->vals + ((rows + scroll_offset) * sheet->cols));
-	    /* draw new row */
-	draw_box_num(C_ind, 5, rows + 1, 1, scroll_offset + rows); /* redraw new row numbering */
-	scroll_offset += 1;
+	if ((sel1.row + r) < (rows)) {
+		sel1.row += r;
+		return ;
+	} else {
+		r -= rows - sel1.row;
+		r += 1;
+		sel1.row = rows - 1;
+	};
+	for (; r > 0 && (scroll_offset + sel1.row) < 99999; r--) {
+		fputs("\x1b[S", stderr); /* scroll Up */
+		if ((sheet->rows - 1) <= (sel1.row + scroll_offset))
+			sheet = vsheet_add_rows(sheet, 1); /* realloc sheet */
+		draw_column_numbering(C_ind, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
+		draw_box_str(C_ind, 6, 1, 1, "      "); /* clear top left corner */
+		//draw_box_num(Grey, 5, 1, 1, sheet->rows); /* draw sheet size */
+		draw_table_num(C_number, 5, rows + 1, 7, 1,
+		    1, columns, sheet->vals + ((rows + scroll_offset) * sheet->cols));
+		    /* draw new row */
+		draw_box_num(C_ind, 5, rows + 1, 1, scroll_offset + rows); /* redraw new row numbering */
+		scroll_offset += 1;
+	};
 }
 
 
@@ -251,6 +339,7 @@ box_set_num(void)
 	int i;
 	draw_box_str(C_command, 9, rows + 2, 1, "\x1b[K"); /* clear comand line area */
 	if ((parser_input_str = command_line_input("    = ", 80, NULL)) != NULL) {
+		i = *sel_get_num();
 		if (yyparse(&i) == 0) { /* call parser */
 			*sel_get_num() = i;
 		};
@@ -268,6 +357,7 @@ box_add_num(void)
 	int i;
 	draw_box_str(C_command, 9, rows + 2, 1, "\x1b[K"); /* clear comand line area */
 	if ((parser_input_str = command_line_input("    + ", 80, NULL)) != NULL) {
+		i = *sel_get_num();
 		if (yyparse(&i) == 0) { /* call parser */
 			*sel_get_num() += i;
 		};
@@ -318,6 +408,7 @@ parse_text(void)
 	if (cmt == NULL || cmt->s == NULL) return ;
 	parser_input_str = cmt->s;
 	if (yyparse(&i) == 0) { /* call parser */
+		i = *sel_get_num();
 		*sel_get_num() = i;
 	};
 	move_selection(0, 0);
