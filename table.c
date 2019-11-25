@@ -164,7 +164,7 @@ struct var_sheet *
 vsheet_set_box(struct var_sheet *s, size_t row, size_t col, box_sz val)
 {
 	if (col >= s->cols) return NULL;
-	//if (row >= s->rows) s = vsheet_add_rows(s, s->rows - row + 1);
+	if (row >= s->rows) s = vsheet_add_rows(s, row - s->rows + 1);
 	s->vals[(row * s->cols) + col] = val;
 	return s;
 }
@@ -252,15 +252,17 @@ struct comment *
 cmt_list_new(struct cmt_list **cl, int r, int c)
 {
 	int i;
+	struct cmt_list *clp = *cl;
 	if (c >= 0) { /* search for specific comment */
-		for (i = 0; i < (*cl)->sz; i++) {
-			if ((*cl)->list[i].s   != NULL &&
-			    (*cl)->list[i].row == r &&
-			    (*cl)->list[i].col == c )
-			{
-				return ((*cl)->list + i);
-			} else if ((*cl)->list[i].s == NULL) {
-				return ((*cl)->list + i);
+		for (i = 0; i < clp->sz; i++) {
+			if (clp->list[i].s   != NULL &&
+			    clp->list[i].row == r &&
+			    clp->list[i].col == c ) {
+				return (clp->list + i);
+			} else if (clp->list[i].s == NULL) {
+				clp->list[i].row = r;
+				clp->list[i].col = c;
+				return (clp->list + i);
 			};
 		};
 	} else {

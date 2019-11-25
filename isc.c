@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
@@ -62,6 +63,8 @@ size_t  scroll_offset = 0;
 
 static int  setup(char *[]);
 static int  get_term_size(void);
+static int  csv_parse(char *);
+static void  csv_read(const char *);
 
 static int   run(void);
 static void  move_selection(int, int);
@@ -105,16 +108,12 @@ setup(char *argv[])
 	/* --- var init --- */
 	parser_input_str = NULL;
 	rows = get_term_size() - 2;
-	if (argv[1] != NULL) {
-		if ((sheet = file_read(argv[1]))  == NULL) {
-			if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
-			if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
-		};
-	} else {
-		if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
-		if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
+	if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
+	if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
+	if ((s_text = cmt_list_init()) == NULL) die("falied to allocate");
+	if (argv[1] != NULL) { /* csv_read expects allocated sheet */
+		csv_read(argv[1]);
 	};
-	if ((s_text = cmt_list_init())              == NULL) die("falied to allocate");
 	/* --- term init --- */
 	terminal_init();
 	terminal_buffer_enable();
@@ -135,49 +134,72 @@ get_term_size(void)
 	return sz.ws_row;
 }
 
-/*
-int
-csv_string(FILE *stream)
+
+static void
+csv_read(const char *file_name)
 {
-	int i;
-	char c;
-	char *str = NULL;
-	for (;;) {
-		if ((c = fgetc(stream) < 0) return -1
-		for (i = 0; i < sizeof(csv_sep); i++) {
-			if (c == csv_sep[i]) return 0; // ignore strings for now
-		};
+	FILE *stream;
+	char *mem = NULL;
+	size_t i = 0;
+	if ((stream = fopen(file_name, "r")) == NULL) die("failed to open file");
+	csv_parse(NULL);
+	while (getline(&mem, &i, stream) > 0) {
+		csv_parse(mem);
+		//putc('\n', stderr);
 	};
+	free(mem);
 }
 
-int
-csv_parse(FILE *stream)
+
+static int
+csv_parse(char *str)
 {
-	int val = 0;
-	int val_sign = 0;
-	int row, col;
-	int i;
-	char c;
-	for (row = col = 0; (c = fgetc(stream)) > 0;) {
-		if (c == csv_str_start) {
-		} else if (c == '-') {
-			val_sign = 1;
-		} else if (c == '+') {
-			continue;
-		};
-		for ( ; c <= '9' && c >= '0'; (c = fgetc(stream) > 0) {
-			val *= 10;
-			val += c - '0';
-		};
-csv_end:
-		if (c == csv_del) {
-			// store value
-		} else if (c == '\n' || c == '\0') {
-			// next row
+	long long int  value;
+	struct comment *cmt;
+	static int row = 0;
+	static int col = 0;
+	char *tmp;
+	if (str == NULL) {
+		row = col = 0;
+		return 0;
+	};
+	for (;;) {
+		value = strtoll(str, &tmp, 0);
+		vsheet_set_box(sheet, row, col, value);
+		//fprintf(stderr, " %lli ", value);
+		str = tmp;
+		switch (*str) {
+		case '\n':
+		case '\0':
+			row += 1;
+			col = 0;
+			return 0;
+		case ',':
+			col += 1;
+			str++;
+			break;
+		case '>': /* FALLTHROW */
+			str++;
+		default:
+			if ((tmp = strchr(str, ',')) == NULL) {
+				str[strlen(str) - 1] = '\0';
+				cmt = cmt_list_new(&s_text, row, col);
+				if (cmt == NULL) return 1;
+				cmt->s = strdup(str);
+				row += 1;
+				col = 0;
+				return 0;
+			} else {
+				*tmp = '\0';
+				cmt = cmt_list_new(&s_text, row, col);
+				if (cmt == NULL) return 1;
+				cmt->s = strdup(str);
+				col += 1;
+				str = tmp + 1;
+			};
 		};
 	};
 }
-*/
 
 
 
@@ -221,8 +243,8 @@ run(void)
 			break;
 		case 'h': move_selection( 0, -(count ? count : 1)); count = 0; break;
 		case 'l': move_selection( 0,  (count ? count : 1)); count = 0; break;
-		case 'k': move_selection(-(count ? count : 1),  0); count = 0; break;
 		case 'j': move_selection( (count ? count : 1),  0); count = 0; break;
+		case 'k': move_selection(-(count ? count : 1),  0); count = 0; break;
 		case '>': box_set_text(); break;
 		case '=': box_set_num();  break;
 		case '+': box_add_num();  break;
@@ -379,7 +401,7 @@ box_set_text(void)
 		if (cmt == NULL) {
 			free(parser_input_str);
 			parser_input_str = NULL;
-			/* TODO: save the file and exit */
+			/* TODO: save the file and exit (out of memory) */
 		} else if (*parser_input_str == '\0') {
 			free(parser_input_str);
 			parser_input_str = NULL;
