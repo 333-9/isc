@@ -32,15 +32,15 @@ Using isc
 isc uses vim bindings (hjkl) to move the cursor.
 `w`  to write to a file
 `q`  to quit
-`>`  isert text (text is not saved)
-`=`  set number to an expression
-`+`  add expression to the number
+`>`  isert text
+`=`  set number to a result of expression
+`+`  add the result of an expression to the current box 
 `Enter`  use text as an expression to set the number
 
 commands:
 most C like expressions are suported
 `1 + 4,   a += 4,   f /= (c4 + 3) * 22`.
-C++ style comments `//.*$` are suported.
+inline comments `//` are suported.
 there are 25 variables `a-z`.
 cells can be addsseres as `[a-z][0-9]+`.
 range operators are operators that work on a range of numbers in a single column.
@@ -62,8 +62,9 @@ File format
 isc format is made to be human readable.
 lines represent rows and columns are separated by `,`. each item can contain
 a number or `,` (or newline) terminated string starting with `>`, optionaly preceedet
-by a number. lines starting with `#` are ignored.
+by a number. `#` is begins a comment, lines starting with `#` are ignored.
 example:
+
 ```
 # contains random numbers and hello world
 1563,55,>hello

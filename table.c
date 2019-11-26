@@ -223,7 +223,7 @@ cmt_list_add(struct cmt_list **cl, size_t row, char col, char *str)
 }
 
 
-struct comment *
+char *
 cmt_list_get(struct cmt_list **cl, int r, int c)
 {
 	int i;
@@ -233,14 +233,14 @@ cmt_list_get(struct cmt_list **cl, int r, int c)
 			    (*cl)->list[i].row == r &&
 			    (*cl)->list[i].col == c )
 			{
-				return ((*cl)->list + i);
+				return ((*cl)->list + i)->s;
 			};
 		};
 	} else if (r >= 0) { /* TODO: search for first accurance of row (needs sorted list) */
 	} else { /* get an empty comment */
 		for (i = 0; i < (*cl)->sz; i++) {
 			if ((*cl)->list[i].s == NULL) {
-				return ((*cl)->list + i);
+				return ((*cl)->list + i)->s;
 			};
 		};
 	};

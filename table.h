@@ -64,8 +64,8 @@ struct cmt_list {
 struct cmt_list *cmt_list_init(void);
 //int cmt_list_add(struct cmt_list **, size_t, char, char *); /* depricatesd */
 
-struct comment *cmt_list_get(struct cmt_list **cl, int r, int c);
-struct comment *cmt_list_new(struct cmt_list **cl, int r, int c);
+char  *cmt_list_get(struct cmt_list **cl, int r, int c);
+struct comment  *cmt_list_new(struct cmt_list **cl, int r, int c);
 
 
 #endif /* def TABLE_H */

@@ -9,10 +9,3 @@ const char C_ind        = 22;
 const char C_number     = 172;
 const char C_text       = 106;
 const char C_error      = 160;
-
-
-/* csv parser */
-const char csv_del  = ',';
-const char csv_sep[]  = { ',', '\n' };
-const char csv_str[]  = { '"', '`' };
-const char csv_str_start  = '>';

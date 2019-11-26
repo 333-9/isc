@@ -13,7 +13,6 @@
 #include "draw.h"
 #include "table.h"
 #include "terminal.h"
-#include "files.h"
 #include "y.tab.h"
 
 #include "config.h"
@@ -36,6 +35,7 @@ extern int  row_changed_first;
 extern int  row_changed_last;
 
 int rows = 20;
+char *default_file = "out.csv";
 
 
 
@@ -64,7 +64,7 @@ size_t  scroll_offset = 0;
 static int  setup(char *[]);
 static int  get_term_size(void);
 static int  csv_parse(char *);
-static void  csv_read(const char *);
+static void  csv_read(char *);
 
 static int   run(void);
 static void  move_selection(int, int);
@@ -136,39 +136,70 @@ get_term_size(void)
 
 
 static void
-csv_read(const char *file_name)
+csv_read(char *file_name)
 {
 	FILE *stream;
 	char *mem = NULL;
 	size_t i = 0;
 	if ((stream = fopen(file_name, "r")) == NULL) die("failed to open file");
+	default_file = file_name;
 	csv_parse(NULL);
 	while (getline(&mem, &i, stream) > 0) {
 		csv_parse(mem);
 		//putc('\n', stderr);
 	};
+	fclose(stream);
 	free(mem);
+}
+
+
+void
+csv_write(const char *file_name)
+{
+	int val;
+	char *str;
+	int r, c;
+	FILE *stream;
+	if ((stream = fopen(file_name, "w")) == NULL) die("failed to open file");
+	for (r = 0; r < sheet->rows; r++) {
+		for (c = 0 ;;) {
+			str = cmt_list_get(&s_text, r, c);
+			val = sheet->vals[(r * sheet->cols) + c];
+			if (val) {
+				if (str != NULL) fprintf(stream, "%lli>%s", val, str);
+				else fprintf(stream, "%lli", val);
+			} else if (str != NULL) {
+				fprintf(stream, ">%s", str);
+			};
+			if (++c >= sheet->cols) break;
+			fputc(',', stream);
+		};
+		putc('\n', stream);
+	};
+	fclose(stream);
 }
 
 
 static int
 csv_parse(char *str)
 {
+	struct comment  *cmt;
 	long long int  value;
-	struct comment *cmt;
-	static int row = 0;
-	static int col = 0;
-	char *tmp;
+	char  *tmp;
+	static int  row = 0;
+	static int  col = 0;
 	if (str == NULL) {
 		row = col = 0;
 		return 0;
 	};
+	if (*str == '#') return 0;
 	for (;;) {
 		value = strtoll(str, &tmp, 0);
 		vsheet_set_box(sheet, row, col, value);
 		//fprintf(stderr, " %lli ", value);
 		str = tmp;
 		switch (*str) {
+		case '#':
 		case '\n':
 		case '\0':
 			row += 1;
@@ -182,7 +213,7 @@ csv_parse(char *str)
 			str++;
 		default:
 			if ((tmp = strchr(str, ',')) == NULL) {
-				str[strlen(str) - 1] = '\0';
+				str[strlen(str) - 1] = '\0'; /* should never segfault */
 				cmt = cmt_list_new(&s_text, row, col);
 				if (cmt == NULL) return 1;
 				cmt->s = strdup(str);
@@ -258,7 +289,7 @@ run(void)
 				parse_text();
 				break;
 			};
-		case 'w': file_write(sheet); break;
+		case 'w': csv_write(default_file); break;
 		case 'q': return 0;
 		default:
 			putc('\a', stderr);
@@ -425,10 +456,10 @@ static void
 parse_text(void)
 {
 	int i;
-	struct comment *cmt;
-	cmt = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
-	if (cmt == NULL || cmt->s == NULL) return ;
-	parser_input_str = cmt->s;
+	char *str;
+	str = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
+	if (str == NULL) return ;
+	parser_input_str = str;
 	if (yyparse(&i) == 0) { /* call parser */
 		i = *sel_get_num();
 		*sel_get_num() = i;
@@ -439,15 +470,16 @@ parse_text(void)
 
 static void
 update_cursor_text(int update_command_line)
-{	struct comment *cmt;
-	cmt = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
-	if (cmt != NULL && cmt->s != NULL) {
+{
+	char *str;
+	str = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
+	if (str != NULL) {
 		draw_box_str(Green, 5, sel1.row + 2, ((sel1.col + 1) * 6) + 1,
-		    cmt->s);
+		    str);
 		if (update_command_line) {
 			draw_box_str(Black, 9,  rows + 2, 1, "\x1b[K"); /* clear comand line area */
 			fprintf(stderr, "\x1b[38;5;%um %s  \x1b[38;5;%um[ %i ]",
-			    C_text, cmt->s, C_number,
+			    C_text, str, C_number,
 			    *vsheet_get_num(sheet, sel1.row + scroll_offset, sel1.col));
 			    /* draw command line */
 		};
