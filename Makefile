@@ -1,6 +1,6 @@
 CC = tcc
 
-isc: isc.c parser/scanner.o y.tab.o terminal.c draw.o table.o parser/range.o
+isc: isc.c parser/scanner.o y.tab.o terminal.c draw.o table.o parser/range.o config.h
 	$(CC) -o $@ isc.c terminal.c parser/scanner.o y.tab.o draw.o table.o parser/range.o
 
 y.tab.o: y.tab.c

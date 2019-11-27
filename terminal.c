@@ -11,7 +11,6 @@
 
 
 struct termios  term_attr_old;
-struct termios  term_attr_new;
 
 
 
@@ -32,7 +31,7 @@ command_line_input(char *prompt, size_t sz, char *str)
 	str[0] = '\0';
 	while (1) {
 		while (read(0, &c, 1) <= 0) ;
-		if (c == '\n') {
+		if (c == '\n' || c == 004) {
 			break;
 		} else if (c == 0x08 || c == 0x7f) { /* backspace */
 			if (i != 0) i--;
@@ -58,19 +57,21 @@ command_line_input(char *prompt, size_t sz, char *str)
 void
 terminal_init(void)
 {
+	struct termios  attr_new = {
+		.c_iflag = BRKINT | ICRNL,
+		.c_oflag = ONLCR | OPOST,
+		.c_cflag = 0,
+		.c_lflag = ISIG,
+		.c_cc[VEOF]  = 004,
+		.c_cc[VEOL]  = 000,
+		.c_cc[VINTR] = 003,
+		.c_cc[VKILL] = 025,
+		.c_cc[VMIN]  = 0,
+		.c_cc[VTIME] = 1,
+	};
 	tcgetattr(0, &term_attr_old);
-	tcgetattr(0, &term_attr_new);
-	term_attr_new.c_lflag = term_attr_new.c_lflag ^ ICANON ^ ECHO;
-	term_attr_new.c_cc[VMIN] = 0;
-	term_attr_new.c_cc[VTIME] = 3;
-	term_attr_new.c_lflag &= ICANON;
-	tcsetattr(0, TCSANOW, &term_attr_new);
-}
-
-
-void
-terminal_reinit(void) {
-	tcsetattr(0, TCSANOW, &term_attr_new);
+	tcsetattr(0, TCSANOW, &attr_new);
+	fputs("\x1b[?1049h\x1b[?25l\x1b[H", stderr);
 }
 
 

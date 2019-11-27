@@ -15,7 +15,6 @@ char  *command_line_input(char *, size_t, char *);
 struct termios  term_attr_old;
 struct termios  term_attr_new;
 void  terminal_init(void);
-void  terminal_reinit(void);
 void  terminal_restore(void);
 
 void  terminal_buffer_enable(void);

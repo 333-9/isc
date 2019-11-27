@@ -18,7 +18,7 @@ static long pow(a, b) {
 
 
 void
-draw_box_str(enum Color color, int width, short row, short col, const char *text)
+draw_box_str(char color, int width, short row, short col, const char *text)
 {
 	if (width < 1) return ;
 	if (strlen(text) > width) {
@@ -32,7 +32,7 @@ draw_box_str(enum Color color, int width, short row, short col, const char *text
 
 
 void
-draw_box_num(enum Color color, int width, short row, short col, int num)
+draw_box_num(char color, int width, short row, short col, int num)
 {
 	if ((unsigned int) num < pow(10, width)) {
 		fprintf(stderr, "\x1b[%hhu;%hhuH\x1b[38;5;%hhum%*u",
@@ -45,7 +45,7 @@ draw_box_num(enum Color color, int width, short row, short col, int num)
 
 
 void
-draw_table_num(enum Color color, int width, short row, short col, short gap,
+draw_table_num(char color, int width, short row, short col, short gap,
                size_t n_rows, size_t n_cols, int *table)
 {
 	int r, c;
@@ -76,7 +76,7 @@ draw_table_num(enum Color color, int width, short row, short col, short gap,
 
 /*
 void
-draw_column_num(enum Color color, int width, short row, short col, int *arr, size_t sz)
+draw_column_num(char color, int width, short row, short col, int *arr, size_t sz)
 {
 	int i;
 	char line[20];
@@ -98,7 +98,7 @@ draw_column_num(enum Color color, int width, short row, short col, int *arr, siz
 
 
 void
-draw_row_numbering(enum Color c, short row, short col, short n1, short n2)
+draw_row_numbering(char c, short row, short col, short n1, short n2)
 {
 	int i;
 	char line[20];
@@ -113,7 +113,7 @@ draw_row_numbering(enum Color c, short row, short col, short n1, short n2)
 
 
 void
-draw_column_numbering(enum Color c, short row, short col, short c1, short c2)
+draw_column_numbering(char c, short row, short col, short c1, short c2)
 {
 	//fputs("      ", stderr);
 	fprintf(stderr, "\x1b[%hu;%huH\x1b[38;5;%hhum     %c", row, col, c, c1++);
