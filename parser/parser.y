@@ -149,7 +149,7 @@ expr:
 
 function:
 	F_pow '(' expr ',' expr ')'    { $$ = ($5 < 0)? 0 : ipow($3, $5); }
-|	F_abs '(' expr ')'             { $$ = + $3; }
+|	F_abs '(' expr ')'             { $$ = abs($3); }
 |	F_avg '(' expr ',' expr ')'    { $$ = ($3 + $5) / 2; }
 ;
 

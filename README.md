@@ -1,6 +1,6 @@
 isc - intiger spreadsheet calculator
 ====================================
-spreadsheet calculator made to be ass small as possible
+simple intiger based spreadsheet calculator
 
 
 Requirements
@@ -24,37 +24,40 @@ Running isc
 isc takes just one command like argument, it is the file name
 (if no filename is given isc writes into out.isc). example:
 
-	isc mysc.isc
+	isc mysc.csv
 
 
 Using isc
 ----------
-isc uses vim bindings (hjkl) to move the cursor.
+isc uses vim bindings to move the cursor.
+`hjkl`  movement (mumber modifiers also work)
 `w`  to write to a file
 `q`  to quit
 `>`  isert text
 `=`  set number to a result of expression
-`+`  add the result of an expression to the current box 
-`Enter`  use text as an expression to set the number
+`+`  add the result of an expression to the current box number
+`Enter`  parses the text in the curent box as an expression, or
+         sets curent box to the modifier number
 
 commands:
 most C like expressions are suported
 `1 + 4,   a += 4,   f /= (c4 + 3) * 22`.
 inline comments `//` are suported.
-there are 25 variables `a-z`.
-cells can be addsseres as `[a-z][0-9]+`.
+there are one letter variables `[a-z]`.
+cells can be addsseres as `[a-z][0-9]+`, where the row (second) is decimal.
 range operators are operators that work on a range of numbers in a single column.
 they are:
-	- `>` larges value
-	- `<` smalles value
-	- `*` moltiply all nonzero values
-	- `+` add all values
-	- `-` substract all values
-	- `&` and
-	- `|` or
-	- `^` xor
+	- `>`, `max` larges value
+	- `<`, `min` smalles value
+	- `+`, `-`, `*` add, substract and multiply all values
+	- `&|^` bitwise and, or, xor respectively
+	- `avg`, `count` avrage and count of all nonsero values
 range assignment operators are similar to assignmest oprerators, but return 0
-`=, +=, *=, ...`, `~` assigns a random value to a range
+`=, +=, *=, ...`, `~` (assigns a random value to a range)
+functions:
+	- pow(a, b)  same as `a**b`
+	- abs(a)     absolute value
+	- avg(a, b)  average of two numbers
 
 
 File format

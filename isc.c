@@ -63,8 +63,10 @@ size_t  scroll_offset = 0;
 
 static int  setup(char *[]);
 static int  get_term_size(void);
-static int  csv_parse(char *);
 static void  csv_read(char *);
+static void  csv_write(const char *);
+static int  csv_parse(char *);
+static char  *csv_parse_str(char *);
 
 static int   run(void);
 static void  move_selection(int, int);
@@ -153,7 +155,7 @@ csv_read(char *file_name)
 }
 
 
-void
+static void
 csv_write(const char *file_name)
 {
 	int val;
@@ -166,10 +168,10 @@ csv_write(const char *file_name)
 			str = cmt_list_get(&s_text, r, c);
 			val = sheet->vals[(r * sheet->cols) + c];
 			if (val) {
-				if (str != NULL) fprintf(stream, "%lli>%s", val, str);
+				if (str != NULL) fprintf(stream, "%lli\"%s\"", val, str);
 				else fprintf(stream, "%lli", val);
 			} else if (str != NULL) {
-				fprintf(stream, ">%s", str);
+				fprintf(stream, "\"%s\"", str);
 			};
 			if (++c >= sheet->cols) break;
 			fputc(',', stream);
@@ -209,6 +211,16 @@ csv_parse(char *str)
 			col += 1;
 			str++;
 			break;
+		case '\'':
+		case '"':
+		case '`':
+			tmp = csv_parse_str(str);
+			cmt = cmt_list_new(&s_text, row, col);
+			if (cmt == NULL) return 1;
+			cmt->s = strdup(++str);
+			if (tmp == NULL) return 0;
+			else str = ++tmp;
+			break;
 		case '>': /* FALLTHROW */
 			str++;
 		default:
@@ -230,6 +242,25 @@ csv_parse(char *str)
 			};
 		};
 	};
+}
+
+
+static char *
+csv_parse_str(char *str)
+{
+	char quot;
+	quot = *str;
+	str++;
+	for (; *str; str++) {
+		if (*str == '\\') {
+			str++;
+			if (str == '\0') return NULL;
+		} else if (*str == quot || *str == '\n') {
+			*str = '\0';
+			return str;
+		};
+	};
+	return NULL;
 }
 
 
@@ -268,10 +299,16 @@ run(void)
 		case '7':
 		case '8':
 		case '9':
-			if (count >= 1000000) break;
-			count *= 10;
-			count += c - '0';
-			break;
+			if (count < 0) {
+				count = c - '0';
+				break;
+			} else if (count >= 1000000) {
+				break;
+			} else {
+				count *= 10;
+				count += c - '0';
+				break;
+			};
 		case 'h': move_selection( 0, -(count ? count : 1)); count = 0; break;
 		case 'l': move_selection( 0,  (count ? count : 1)); count = 0; break;
 		case 'j': move_selection( (count ? count : 1),  0); count = 0; break;
