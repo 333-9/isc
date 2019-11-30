@@ -7,15 +7,14 @@
 
 #include <stdlib.h>
 
-#include "../table.h"
+#include "table.h"
 
 
 
 
 extern struct var_sheet  *sheet;
-
-int row_changed_first = 0;
-int row_changed_last = 0;
+extern int row_changed_first = 0;
+extern int row_changed_last = 0;
 
 
 int p_rand(int a, int b)  { return rand(); }

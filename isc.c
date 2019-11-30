@@ -21,7 +21,7 @@
 
 
 #define \
-sel_get_num()  (sheet->vals + ((scroll_offset + (sel1.row)) * sheet->cols) + sel1.col)
+sel_get_num()  (sheet->vals + ((scroll_offset + (sel_row)) * sheet->cols) + sel_col)
 
 #define \
 die(s)  die_line_num(__LINE__, s)
@@ -29,10 +29,10 @@ die(s)  die_line_num(__LINE__, s)
 
 
 
-extern char  *parser_input_str;
+char  *parser_input_str;
+int  row_changed_first;
+int  row_changed_last;
 
-extern int  row_changed_first;
-extern int  row_changed_last;
 
 int rows = 20;
 char *default_file = "out.csv";
@@ -40,23 +40,19 @@ char *default_file = "out.csv";
 
 
 
-struct position {
-	int col;
-	int row;
-};
-struct position  sel1; /* main cursor */
-struct position  sel2;
+int mark_col = 0;
+int mark_row = 0;
+int sel_col = 0;
+int sel_row = 0;
+size_t  scroll_offset = 0;
 
 struct {
 	size_t height;
 	size_t width;
 } terminal_status; /* future functionality, for now everything depends on rows */
 
-
 struct var_sheet  *sheet = NULL;
-struct cmt_list   *s_text = NULL;
-
-size_t  scroll_offset = 0;
+struct cmt_list   *text  = NULL;
 
 
 
@@ -86,8 +82,11 @@ static void  die_line_num(int, const char *);
 
 
 
+extern yylex(void);
+
 void
-yyerror(int *not_used, char *s) {
+yyerror(int *not_used, char *s)
+{
 	static char *prev = NULL;
 	if (s == NULL && prev != NULL) {
 		draw_box_str(C_error,  9, rows + 2, 1, "\x1b[K"); /* clear comand line area */
@@ -95,7 +94,7 @@ yyerror(int *not_used, char *s) {
 		draw_box_str(C_error,200, rows + 2, 9, prev); /* draw error message */
 		prev = NULL;
 		parser_input_str = NULL;
-		while (yyparse(NULL) > 0) ;
+		while (yylex()) ; /* clear lex input */
 	} else {
 		prev = s;
 	};
@@ -112,7 +111,7 @@ setup(char *argv[])
 	rows = get_term_size() - 2;
 	if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
 	if ((sheet = vsheet_add_rows(sheet, rows)) == NULL) die("failed to realloc");
-	if ((s_text = cmt_list_init()) == NULL) die("falied to allocate");
+	if ((text = cmt_list_init()) == NULL) die("falied to allocate");
 	if (argv[1] != NULL) { /* csv_read expects allocated sheet */
 		csv_read(argv[1]);
 	};
@@ -123,7 +122,6 @@ setup(char *argv[])
 	draw_column_numbering(C_ind, 1, 4, 'a', 'a' + columns - 1);
 	draw_row_numbering(C_ind, 2, 1, 0, rows - 1);
 	draw_table_num(C_number, 5, 2, 7, 1, sheet->rows, columns, sheet->vals);
-	sel1 = (struct position){ .col = 0, .row = 0 }; /* default position */
 	move_selection(0, 0); /* draw cursor */
 }
 
@@ -165,7 +163,7 @@ csv_write(const char *file_name)
 	if ((stream = fopen(file_name, "w")) == NULL) die("failed to open file");
 	for (r = 0; r < sheet->rows; r++) {
 		for (c = 0 ;;) {
-			str = cmt_list_get(&s_text, r, c);
+			str = cmt_list_get(&text, r, c);
 			val = sheet->vals[(r * sheet->cols) + c];
 			if (val) {
 				if (str != NULL) fprintf(stream, "%lli\"%s\"", val, str);
@@ -215,7 +213,7 @@ csv_parse(char *str)
 		case '"':
 		case '`':
 			tmp = csv_parse_str(str);
-			cmt = cmt_list_new(&s_text, row, col);
+			cmt = cmt_list_new(&text, row, col);
 			if (cmt == NULL) return 1;
 			cmt->s = strdup(++str);
 			if (tmp == NULL) return 0;
@@ -226,7 +224,7 @@ csv_parse(char *str)
 		default:
 			if ((tmp = strchr(str, ',')) == NULL) {
 				str[strlen(str) - 1] = '\0'; /* should never segfault */
-				cmt = cmt_list_new(&s_text, row, col);
+				cmt = cmt_list_new(&text, row, col);
 				if (cmt == NULL) return 1;
 				cmt->s = strdup(str);
 				row += 1;
@@ -234,7 +232,7 @@ csv_parse(char *str)
 				return 0;
 			} else {
 				*tmp = '\0';
-				cmt = cmt_list_new(&s_text, row, col);
+				cmt = cmt_list_new(&text, row, col);
 				if (cmt == NULL) return 1;
 				cmt->s = strdup(str);
 				col += 1;
@@ -341,32 +339,37 @@ run(void)
 static void
 move_selection(int r, int c)
 {
-#	define S_COL(c) ((6 * (c.col + 1)) + 1)
-#	define S_ROW(r) (r.row + 2)
-	int n = *sel_get_num();
+#	define SCOL(a) ((6 * (a + 1)) + 1)
+#	define SROW(a) (a + 2)
+	int n;
 	/* remove prev cursor: */
-	draw_box_num(C_ind, 5, S_ROW(sel1), 1, scroll_offset + sel1.row);
-	draw_column_numbering(C_ind, 1, S_COL(sel1) - 3, 'a' + sel1.col, 0);
-	draw_box_str(Black, 1, S_ROW(sel1), S_COL(sel1) - 1,     " ");
-	draw_box_str(Black, 1, S_ROW(sel1), S_COL(1 + sel1) - 1, " ");
-	/* draw prev cursor box: */
-	if (!n) draw_box_str(C_number, 5, S_ROW(sel1), S_COL(sel1), "     ");
-	else    draw_box_num(C_number,  5, S_ROW(sel1), S_COL(sel1), n);
+	{
+		n = *sel_get_num();
+		draw_box_num(C_ind, 5, SROW(sel_row), 1, scroll_offset + sel_row);
+		draw_column_numbering(C_ind, 1, SCOL(sel_col) - 3, 'a' + sel_col, 0);
+		draw_box_str(Black, 1, SROW(sel_row), SCOL(sel_col) - 1,     " ");
+		draw_box_str(Black, 1, SROW(sel_row), SCOL(1 + sel_col) - 1, " ");
+		/* draw prev cursor box: */
+		if (!n) draw_box_str(C_number, 5, SROW(sel_row), SCOL(sel_col), "     ");
+		else    draw_box_num(C_number,  5, SROW(sel_row), SCOL(sel_col), n);
+		update_cursor_text(0); /* draw prev text */
+	}
 	draw_box_str(Black, 9,  rows + 2, 1, "\x1b[K"); /* clear comand line area */
-	update_cursor_text(0); /* draw prev text */
 	/* move cursor: */
-	if        (c < 0) { sel1.col = ((sel1.col + c) >= 0) ? sel1.col + c : 0;
-	} else if (c > 0) { sel1.col = ((sel1.col + c) < (columns)) ? sel1.col + c : columns - 1;
+	if        (c < 0) { sel_col = ((sel_col + c) >= 0) ? sel_col + c : 0;
+	} else if (c > 0) { sel_col = ((sel_col + c) < (columns)) ? sel_col + c : columns - 1;
 	} else if (r < 0) { scroll_up(-r);
 	} else if (r > 0) { scroll_down(r);
 	};
 	/* draw cursor: */
-	draw_box_num(C_cursor, 5, S_ROW(sel1), 1, scroll_offset + sel1.row);
-	draw_column_numbering(C_cursor, 1, S_COL(sel1) - 3, 'a' + sel1.col, 0);
-	draw_box_str(C_cursor, 1, S_ROW(sel1), 1, ">");
-	draw_box_str(C_cursor, 1, S_ROW(sel1), S_COL(sel1) - 1,     "[");
-	draw_box_str(C_cursor, 1, S_ROW(sel1), S_COL(1 + sel1) - 1, "]");
-	update_cursor_text(1); /* draw text */
+	{
+		draw_box_num(C_cursor, 5, SROW(sel_row), 1, scroll_offset + sel_row);
+		draw_column_numbering(C_cursor, 1, SCOL(sel_col) - 3, 'a' + sel_col, 0);
+		draw_box_str(C_cursor, 1, SROW(sel_row), 1, ">");
+		draw_box_str(C_cursor, 1, SROW(sel_row), SCOL(sel_col) - 1,     "[");
+		draw_box_str(C_cursor, 1, SROW(sel_row), SCOL(1 + sel_col) - 1, "]");
+		update_cursor_text(1); /* draw text */
+	}
 	yyerror(NULL, NULL); /* draw error message */
 #	undef S_COL
 #	undef S_ROW
@@ -376,12 +379,12 @@ move_selection(int r, int c)
 static void
 scroll_up(int r)
 {
-	sel1.row -= r;
-	if (sel1.row >= 0) {
+	sel_row -= r;
+	if (sel_row >= 0) {
 		return ;
 	};
-	r = -sel1.row;
-	sel1.row = 0;
+	r = -sel_row;
+	sel_row = 0;
 	for (; scroll_offset && r; r--) {
 		fputs("\x1b[T", stderr); /* scroll Down */
 		draw_box_str(Black, 9, rows + 2, 1, "\x1b[K"); /* clear command line area */
@@ -399,17 +402,17 @@ scroll_up(int r)
 static void
 scroll_down(int r)
 {
-	if ((sel1.row + r) < (rows)) {
-		sel1.row += r;
+	if ((sel_row + r) < (rows)) {
+		sel_row += r;
 		return ;
 	} else {
-		r -= rows - sel1.row;
+		r -= rows - sel_row;
 		r += 1;
-		sel1.row = rows - 1;
+		sel_row = rows - 1;
 	};
-	for (; r > 0 && (scroll_offset + sel1.row) < 99999; r--) {
+	for (; r > 0 && (scroll_offset + sel_row) < 99999; r--) {
 		fputs("\x1b[S", stderr); /* scroll Up */
-		if ((sheet->rows - 1) <= (sel1.row + scroll_offset))
+		if ((sheet->rows - 1) <= (sel_row + scroll_offset))
 			sheet = vsheet_add_rows(sheet, 1); /* realloc sheet */
 		draw_column_numbering(C_ind, 1, 4, 'a', 'a' + (columns - 1)); /* redraw top row */
 		draw_box_str(C_ind, 6, 1, 1, "      "); /* clear top left corner */
@@ -465,7 +468,7 @@ box_set_text(void)
 	struct comment *cmt;
 	draw_box_str(C_command, 9, rows + 2, 1, "\x1b[K"); /* clear comand line area */
 	if ((parser_input_str = command_line_input("    > ", 80, NULL)) != NULL) {
-		cmt = cmt_list_new(&s_text, sel1.row + scroll_offset, sel1.col);
+		cmt = cmt_list_new(&text, sel_row + scroll_offset, sel_col);
 		if (cmt == NULL) {
 			free(parser_input_str);
 			parser_input_str = NULL;
@@ -478,8 +481,8 @@ box_set_text(void)
 			if (cmt->s != NULL) free(cmt->s);
 			cmt->s = NULL;
 		} else {
-			cmt->row = sel1.row + scroll_offset;
-			cmt->col = sel1.col;
+			cmt->row = sel_row + scroll_offset;
+			cmt->col = sel_col;
 			if (cmt->s != NULL) free(cmt->s);
 			cmt->s = parser_input_str;
 		};
@@ -494,7 +497,7 @@ parse_text(void)
 {
 	int i;
 	char *str;
-	str = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
+	str = cmt_list_get(&text, sel_row + scroll_offset, sel_col);
 	if (str == NULL) return ;
 	parser_input_str = str;
 	if (yyparse(&i) == 0) { /* call parser */
@@ -509,21 +512,21 @@ static void
 update_cursor_text(int update_command_line)
 {
 	char *str;
-	str = cmt_list_get(&s_text, sel1.row + scroll_offset, sel1.col);
+	str = cmt_list_get(&text, sel_row + scroll_offset, sel_col);
 	if (str != NULL) {
-		draw_box_str(Green, 5, sel1.row + 2, ((sel1.col + 1) * 6) + 1,
+		draw_box_str(Green, 5, sel_row + 2, ((sel_col + 1) * 6) + 1,
 		    str);
 		if (update_command_line) {
 			draw_box_str(Black, 9,  rows + 2, 1, "\x1b[K"); /* clear comand line area */
 			fprintf(stderr, "\x1b[38;5;%um %s  \x1b[38;5;%um[ %i ]",
 			    C_text, str, C_number,
-			    *vsheet_get_num(sheet, sel1.row + scroll_offset, sel1.col));
+			    *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col));
 			    /* draw command line */
 		};
 	} else if (update_command_line) {
 		draw_box_str(C_number, 9,  rows + 2, 1, "\x1b[K"); /* clear comand line area */
 		fprintf(stderr, " \x1b[38;5;%um[ %i ]", C_number,
-		    *vsheet_get_num(sheet, sel1.row + scroll_offset, sel1.col));
+		    *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col));
 		    /* draw command line */
 	};
 }
@@ -533,14 +536,14 @@ static void
 update_text(void)
 {
 	int i;
-	for (i = 0; i < s_text->sz; i++) {
-		if  (s_text->list[i].s != NULL &&
-		    (s_text->list[i].row) <= (scroll_offset + rows - 1) &&
-		    (s_text->list[i].row) >= scroll_offset) {
+	for (i = 0; i < text->sz; i++) {
+		if  (text->list[i].s != NULL &&
+		    (text->list[i].row) <= (scroll_offset + rows - 1) &&
+		    (text->list[i].row) >= scroll_offset) {
 			draw_box_str(C_text, 5,
-			    s_text->list[i].row + 2 - scroll_offset,
-			    ((s_text->list[i].col + 1) * 6) + 1,
-			    s_text->list[i].s);
+			    text->list[i].row + 2 - scroll_offset,
+			    ((text->list[i].col + 1) * 6) + 1,
+			    text->list[i].s);
 		};
 	};
 }

@@ -1,4 +1,4 @@
-#include "../table.h"
+#include "table.h"
 
 
 int p_rand   (int, int);

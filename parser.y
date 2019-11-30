@@ -1,13 +1,15 @@
 %{
 #include <stdlib.h>
 #include <stdio.h>
-#include "parser/range.h"
+
+#include "range.h"
 
 
-char *parser_input_str;
+extern char *parser_input_str;
 extern void  yyerror(int *, char *s);
 int vars[25] = {0};
 int prev_value = 0;
+//|	'$' variable       { $$ = *((int *) $1); }
 
 
 int yylex();
@@ -22,6 +24,7 @@ int ipow(int, int);
 %parse-param { int *parser_ret }
 
 
+%token EOL
 %token NUM
 %token Var_name
 %token F_pow F_abs F_avg
@@ -46,7 +49,8 @@ int ipow(int, int);
 %left L_and L_or L_xor
 %left '+' '-'
 %left '&' '^' '|'
-%left O_lsh O_rsh O_pow
+%left O_lsh O_rsh
+%left O_pow
 %left '*' '/' '%'
 %left L_not
 
@@ -55,19 +59,18 @@ int ipow(int, int);
 
 
 program:
-	'$'              { return 0; }
-|	expr '$'
+	EOL    { return 0; }
+|	expr EOL
 	{
 		prev_value = $1;
 		if (parser_ret != NULL) *parser_ret = $1;
 		return 0;
 	}
-|	/* NOP */        { return -1; }
 ;
 
 variable:
 	Var_name { $$ = (int) (vars + $1); }
-|	Var_name NUM { if(($$ = (int) parser_get_num($2, $1)) == NULL) return -1; }
+|	Var_name NUM { if(($$ = (int) parser_get_num($2, $1)) == NULL) return 1; }
 ;
 
 assignment:
@@ -98,8 +101,8 @@ range:
 |	'^' Var_name NUM ':' NUM      { $$ = parser_for_range($3, $5, $2, &p_xor); }
 |	'|' Var_name NUM ':' NUM      { $$ = parser_for_range($3, $5, $2, &p_or ); }
 |	'*' Var_name NUM ':' NUM      { $$ = parser_for_range($3, $5, $2, &p_mul); }
-|	'/' Var_name NUM ':' NUM      { yyerror(NULL, "invalid operator"); return -2; }
-|	'%' Var_name NUM ':' NUM      { yyerror(NULL, "invalid operator"); return -2; }
+|	'/' Var_name NUM ':' NUM      { yyerror(NULL, "invalid operator"); return 1; }
+|	'%' Var_name NUM ':' NUM      { yyerror(NULL, "invalid operator"); return 1; }
 |	Var_name NUM ':' NUM A_set expr    { $$ = PAFR($2, $4, $1, &p_assign, $6); }
 |	Var_name NUM ':' NUM A_add expr    { $$ = PAFR($2, $4, $1, &p_add, $6); }
 |	Var_name NUM ':' NUM A_sub expr    { $$ = PAFR($2, $4, $1, &p_sub, $6); }
@@ -113,10 +116,14 @@ range:
 |	Var_name NUM ':' NUM A_rs  expr    { $$ = PAFR($2, $4, $1, &p_rs , $6); }
 ;
 
-expr:
+val:
 	NUM                { $$ = $1; }
 |	'.'                { $$ = (parser_ret == NULL) ? 0 : *parser_ret; }
 |	'_'                { $$ = prev_value; }
+;
+
+expr:
+	val                { $$ = $1; }
 |	expr '+' expr      { $$ = $1 + $3; }
 |	expr '-' expr      { $$ = $1 - $3; }
 |	expr '&' expr      { $$ = $1 & $3; }
@@ -141,7 +148,6 @@ expr:
 |	expr '?' expr ':' expr  { $$ = $1 ? $3 : $5; }
 |	'(' expr ')'            { $$ = $2; }
 |	function                { $$ = $1; }
-|	variable                { $$ = *((int *) $1); }
 |	assignment              { $$ = $1; }
 |	range                   { $$ = $1; }
 ;

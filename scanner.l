@@ -1,6 +1,7 @@
 %{
 #include <stdlib.h>
 #include <stdio.h>
+
 #include "y.tab.h"
 
 extern int yylval;
@@ -74,8 +75,8 @@ size_t _input(char *buf, int sz) {
 ">>="   return A_rs;
 
 [-+/*%&^|?:<>~,._]   { return *yytext; }
-[()\[\]\{\}]        { return *yytext; }
+[)(\[\]\{\}]        { return *yytext; }
 
-[ \t]+	{ ; }
-("//".*)*\n { return '$'; } 
+[ \t]+	  { ; }
+("//".*)*\n    { return EOL; } 
 %%
