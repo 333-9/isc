@@ -59,6 +59,7 @@ static int  setup(char *[]);
 static int  get_term_size(void);
 static void  csv_read(char *);
 static void  csv_write(const char *);
+static int  csv_get_row_width(int);
 static int  csv_parse(char *);
 static char  *csv_parse_str(char *);
 
@@ -157,10 +158,12 @@ csv_write(const char *file_name)
 {
 	int val;
 	char *str;
-	int r, c;
+	int r, c, width;
 	FILE *stream;
 	if ((stream = fopen(file_name, "w")) == NULL) die("failed to open file");
+	cmt_list_update(&text);
 	for (r = 0; r < sheet->rows; r++) {
+		width = csv_get_row_width(r);
 		for (c = 0 ;;) {
 			str = cmt_list_str(&text, r, c);
 			val = sheet->vals[(r * sheet->cols) + c];
@@ -171,12 +174,29 @@ csv_write(const char *file_name)
 			} else if (str != NULL && *str != '\0') {
 				fprintf(stream, "\"%s\"", str);
 			};
-			if (++c >= sheet->cols) break;
+			//if (++c >= sheet->cols) break;
+			if (++c > width) break;
 			fputc(',', stream);
 		};
 		putc('\n', stream);
 	};
 	fclose(stream);
+}
+
+
+static int
+csv_get_row_width(int r)
+{
+	size_t i;
+	size_t wt, wv;
+	i = cmt_list_get_from(&text, r, 0);
+	for (; i < text->sz && text->list[i].row == r; i++) 
+		if (text->list[i].s == NULL) break;
+	if (i != 0) wt = text->list[--i].col;
+	else wt = 0;
+	wv = vsheet_get_row_width(sheet, r);
+	if (wt > wv) return wt;
+	else return wv;
 }
 
 
@@ -271,8 +291,8 @@ run(void)
 	char c;
 	int count = 0;
 	while (1) {
-		//update_text(0);
 		update_nums(row_changed_first, row_changed_last);
+		update_text(0);
 		row_changed_first = 0;
 		row_changed_last  = 0;
 		while (read(0, &c, 1) <= 0) {
@@ -280,7 +300,6 @@ run(void)
 			if (rows + scroll_offset > sheet->rows  &&
 			    vsheet_add_rows(&sheet, (rows + scroll_offset) - sheet->rows) < 0)
 				die("failed to realloc");
-			//update_text(0);
 		};
 		switch (c) {
 		case '0': /* FALLTHROW */
@@ -475,7 +494,8 @@ box_set_text(void)
 		if (cmt == NULL) {
 			free(parser_input_str);
 			parser_input_str = NULL;
-			/* TODO: save the file and exit (out of memory) */
+			/* TODO: save the file and exit */
+			die("cmt_list error");
 		} else if (*parser_input_str == '\0') {
 			free(parser_input_str);
 			parser_input_str = NULL;
