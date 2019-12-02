@@ -1,7 +1,3 @@
-#ifndef DRAW_H
-#define DRAW_H
-
-
 struct text_box {
 	int width;
 	int color;
@@ -19,5 +15,3 @@ void draw_table_num(char, int, short, short, short gap,
 
 void draw_row_numbering(char, short, short, short, short);
 void draw_column_numbering(char, short, short, short, short);
-
-#endif

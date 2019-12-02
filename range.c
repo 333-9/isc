@@ -1,18 +1,19 @@
 /*
  * wur@guardian
  * date:08.10. 2019
- * this cares about all the range operator functions
+ * range operator functions
  */
 
 
 #include <stdlib.h>
 
 #include "table.h"
+#include "isc.h"
 
 
 
 
-extern struct var_sheet  *sheet;
+extern struct vsheet  *sheet;
 extern int row_changed_first = 0;
 extern int row_changed_last = 0;
 
@@ -76,11 +77,13 @@ parser_assign_for_range(size_t r1, size_t r2, size_t c, int (*func)(int, int), i
 	if (r1 < row_changed_first) row_changed_first = r1;
 	if (r2 > row_changed_last)  row_changed_last  = r2;
 	if (r1 > r2) {
-		if (r1 >= sheet->rows) sheet = vsheet_add_rows(sheet, 1 + r1 - sheet->rows);
+		if (r1 >= sheet->rows  &&  vsheet_add_rows(&sheet, 1 + r1 - sheet->rows) < 0)
+			die("Failed to realloc sheet");
 		p = vsheet_get_num(sheet, r2, c);
 		r = r1 - r2;
 	} else {
-		if (r2 >= sheet->rows) sheet = vsheet_add_rows(sheet, 1 + r2 - sheet->rows);
+		if (r2 >= sheet->rows  &&  vsheet_add_rows(&sheet, 1 + r2 - sheet->rows) < 0)
+			die("Failed to realloc sheet");
 		p = vsheet_get_num(sheet, r1, c);
 		r = r2 - r1;
 	};

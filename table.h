@@ -1,54 +1,38 @@
-#ifndef TABLE_H
-#define TABLE_H
+/*
+ * storage classes for intiger and string data
+ */
 
-struct csheet {
-	size_t height;
-#	define Ncol 0x100
-	int    *num[Ncol];
-	char * *str[Ncol];
-};
-typedef struct csheet * Sheet;
-typedef unsigned char Col;
-typedef size_t Row;
+/*
+ * functions returning intigers as atatus will return 0 on success,
+ * >0 on warning and -1 on error
+ */
 
 
+typedef int Box_int;
 
-
-Sheet  csheet_init(size_t);
-void  csheet_free(Sheet);
-int  csheet_add_rows(Sheet, size_t);
-static int  csheet_add_num_col(Sheet, Col);
-static int  csheet_add_str_col(Sheet, Col);
-int  csheet_add_num(Sheet, Col, Row, int);
-int  csheet_add_str(Sheet, Col, Row, const char *);
-int  csheet_set_str(Sheet, Col, Row, char *);
-int  csheet_get_num(Sheet, Col, Row);
-char  *csheet_get_str(Sheet, Col, Row);
-
-
-
-
-typedef int box_sz;
-
-struct var_sheet {
-	struct var_sheet *next;
+struct vsheet {
+	struct vsheet *next;
 	size_t cols;
 	size_t rows;
-	box_sz vals[];
+	Box_int vals[];
 };
 
-struct var_sheet  *vsheet_init(size_t);
-void  vsheet_free(struct var_sheet *);
-struct var_sheet  *vsheet_set_box(struct var_sheet *, size_t, size_t, box_sz);
-struct var_sheet  *vsheet_add_rows(struct var_sheet *, size_t);
-box_sz  *vsheet_get_num(struct var_sheet *, size_t, size_t);
+
+struct vsheet  *vsheet_init(size_t);
+void  vsheet_free(struct vsheet *);
+int   vsheet_set_box(struct vsheet **, size_t, size_t, Box_int);
+int   vsheet_add_rows(struct vsheet **, size_t);
+Box_int  *vsheet_get_num(struct vsheet *, size_t, size_t);
+int  vsheet_get_row_width(struct vsheet *, size_t);
 
 
 
+
+#define CMT_LIST_CHUNK 16
 
 struct comment {
 	size_t row;
-	char   col;
+	size_t col;
 	char *s;
 };
 
@@ -56,18 +40,15 @@ struct comment  *comment_setup(char *, size_t, char, char, char *);
 
 
 struct cmt_list {
-#	define CMT_LIST_CHUNK 16
 	size_t sz;
-	struct comment list[];
+	int i;
+	struct comment  list[];
 };
 
 struct cmt_list *cmt_list_init(void);
-//int cmt_list_add(struct cmt_list **, size_t, char, char *); /* depricatesd */
-
-char  *cmt_list_get(struct cmt_list **cl, int r, int c);
-struct comment  *cmt_list_new(struct cmt_list **cl, int r, int c);
-
-
-#endif /* def TABLE_H */
+struct comment  *cmt_list_new(struct cmt_list **, int, int);
+size_t  cmt_list_get_from(struct cmt_list **, int, int);
+char   *cmt_list_str(struct cmt_list **, size_t, size_t);
+int     cmt_list_update(struct cmt_list **);
 
 /* EOF */

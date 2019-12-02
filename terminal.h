@@ -4,9 +4,6 @@
  */
 
 
-#ifndef TERMINAL_H
-#define TERMINAL_H
-
 #include <stdio.h>
 #include <termios.h>
 
@@ -19,5 +16,3 @@ void  terminal_restore(void);
 
 void  terminal_buffer_enable(void);
 void  terminal_buffer_disable(void);
-
-#endif
