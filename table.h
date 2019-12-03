@@ -12,18 +12,21 @@ typedef int Box_int;
 
 struct vsheet {
 	struct vsheet *next;
-	size_t cols;
 	size_t rows;
+	size_t cols;
+	size_t last_nonzero_row;
+	size_t last_ind; /* last row given by *_get_num() */
 	Box_int vals[];
 };
 
 
 struct vsheet  *vsheet_init(size_t);
 void  vsheet_free(struct vsheet *);
+void  vsheet_update(struct vsheet *);
+Box_int  *vsheet_get_num(struct vsheet *, size_t, size_t);
 int   vsheet_set_box(struct vsheet **, size_t, size_t, Box_int);
 int   vsheet_add_rows(struct vsheet **, size_t);
-Box_int  *vsheet_get_num(struct vsheet *, size_t, size_t);
-int  vsheet_get_row_width(struct vsheet *, size_t);
+int   vsheet_get_row_width(struct vsheet *, size_t);
 
 
 

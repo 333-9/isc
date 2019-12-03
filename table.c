@@ -10,6 +10,9 @@
 #include "table.h"
 
 
+#define VSHI(s, r, c) ((r * s->cols) + c)
+
+
 int cmt_sort_compare(const void *, const void *);
 
 
@@ -21,8 +24,10 @@ vsheet_init(size_t columns)
 	ret = malloc(sizeof(struct vsheet));
 	if (ret == NULL) return NULL;
 	ret->next = NULL;
-	ret->cols = columns;
 	ret->rows = 0;
+	ret->cols = columns;
+	ret->last_ind = 0;
+	ret->last_nonzero_row = 0;
 	return ret;
 }
 
@@ -45,13 +50,14 @@ vsheet_add_rows(struct vsheet **s, size_t n)
 
 
 int
-vsheet_set_box(struct vsheet **s, size_t row, size_t col, Box_int val)
+vsheet_set_box(struct vsheet **s, size_t r, size_t c, Box_int val)
 {
-	if (col >= (*s)->cols) return 1;
-	if (row >= (*s)->rows) {
-		if (vsheet_add_rows(s, row - (*s)->rows + 1) < 0) return -1;
+	if (c >= (*s)->cols) return 1;
+	if (r >= (*s)->rows) {
+		if (vsheet_add_rows(s, r - (*s)->rows + 1) < 0) return -1;
 	};
-	(*s)->vals[(row * (*s)->cols) + col] = val;
+	if (val && (r > (*s)->last_nonzero_row)) (*s)->last_nonzero_row = r;
+	(*s)->vals[VSHI((*s), r, c)] = val;
 	return 0;
 }
 
@@ -60,7 +66,10 @@ Box_int *
 vsheet_get_num(struct vsheet *s, size_t r, size_t c)
 {
 	if (r >= s->rows || c >= s->cols) return NULL;
-	return (s->vals + (r * s->cols) + c);
+	vsheet_update(s);
+	//if (r > s->last_nonzero_row) s->last_nonzero_row = r;
+	s->last_ind = VSHI(s, r, c);
+	return (s->vals + s->last_ind);
 }
 
 
@@ -70,9 +79,20 @@ vsheet_get_row_width(struct vsheet *s, size_t r)
 	int i, wt = 0;
 	if (r >= s->rows) return 0; /* width defaults to 0 */
 	for (i = 0; i < s->cols; i++) {
-		if (s->vals[(r * s->cols) + i] != 0) wt = i;
+		if (s->vals[VSHI(s, r, i)] != 0) wt = i;
 	};
 	return wt;
+}
+
+
+void
+vsheet_update(struct vsheet *s)
+{
+	if (s->vals[s->last_ind] == 0) return ;
+	if (s->last_ind / s->cols > s->last_nonzero_row) {
+		s->last_nonzero_row = s->last_ind / s->cols;
+		if (s->last_ind % s->cols) s->last_nonzero_row += 1;
+	};
 }
 
 

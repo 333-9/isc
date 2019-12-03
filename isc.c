@@ -60,6 +60,7 @@ static int  get_term_size(void);
 static void  csv_read(char *);
 static void  csv_write(const char *);
 static int  csv_get_row_width(int);
+static int  csv_get_last_row(void);
 static int  csv_parse(char *);
 static char  *csv_parse_str(char *);
 
@@ -158,11 +159,13 @@ csv_write(const char *file_name)
 {
 	int val;
 	char *str;
-	int r, c, width;
+	int r, c, width, row_max;
 	FILE *stream;
 	if ((stream = fopen(file_name, "w")) == NULL) die("failed to open file");
 	cmt_list_update(&text);
-	for (r = 0; r < sheet->rows; r++) {
+	vsheet_update(sheet);
+	row_max = csv_get_last_row();
+	for (r = 0; r < row_max; r++) {
 		width = csv_get_row_width(r);
 		for (c = 0 ;;) {
 			str = cmt_list_str(&text, r, c);
@@ -201,6 +204,23 @@ csv_get_row_width(int r)
 
 
 static int
+csv_get_last_row()
+{
+	int r;
+	int i;
+	r = sheet->last_nonzero_row;
+	i = cmt_list_get_from(&text, r, 0);
+	if (text->list[i].row > r) {
+		for (; i < text->sz; i++) {
+			if (text->list[i].s == NULL) return r + 1;
+			r = text->list[i].row;
+		};
+	};
+	return r;
+}
+
+
+static int
 csv_parse(char *str)
 {
 	struct comment  *cmt;
@@ -219,6 +239,7 @@ csv_parse(char *str)
 			die("failed to realloc");
 		//fprintf(stderr, " %lli ", value);
 		str = tmp;
+csv_parse_switch:
 		switch (*str) {
 		case '#':
 		case '\n':
@@ -239,6 +260,7 @@ csv_parse(char *str)
 			cmt->s = strdup(++str);
 			if (tmp == NULL) return 0;
 			else str = ++tmp;
+			goto csv_parse_switch;
 			break;
 		case '>': /* FALLTHROW */
 			str++;
