@@ -4,6 +4,7 @@ struct text_box {
 };
 
 
+void drawf(uint8_t r, uint8_t c, const char *format, ...);
 
 
 void draw_box_str(char, int, short, short, const char *);

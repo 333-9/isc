@@ -71,13 +71,14 @@ terminal_init(void)
 	};
 	tcgetattr(0, &term_attr_old);
 	tcsetattr(0, TCSANOW, &attr_new);
-	fputs("\x1b[?1049h\x1b[?25l\x1b[H", stderr);
+	fputs("\e[?25l", stderr); /* disable cursor */
 }
 
 
 void
 terminal_restore(void) {
 	tcsetattr(0, TCSANOW, &term_attr_old);
+	fputs("\e[?25h", stderr); /* enable cursor */
 }
 
 

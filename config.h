@@ -15,9 +15,10 @@ enum Color {
 	Grey    = 8,
 };
 
-const char C_cursor     = Yellow;
-const char C_command    = Yellow;
-const char C_ind        = 28;
-const char C_number     = 172;
-const char C_text       = 76;
-const char C_error      = Red;
+const char C_cursor     = 46;//226;
+const char C_command    = 46;//226;
+const char C_ind        = 240;//240;
+const char C_number     = 70;//245;
+const char C_special    = 6;
+const char C_text       = 250;//82;
+const char C_error      = Red;//Red;

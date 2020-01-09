@@ -74,8 +74,8 @@ size_t _input(char *buf, int sz) {
 "<<="   return A_ls;
 ">>="   return A_rs;
 
-[-+/*%&^|?:<>~,._]   { return *yytext; }
-[)(\[\]\{\}]        { return *yytext; }
+[-+/*$%&^|?:<>~,._]   { return *yytext; }
+[)(\[\]\{\}]          { return *yytext; }
 
 [ \t]+	  { ; }
 ("//".*)*\n    { return EOL; } 

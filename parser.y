@@ -60,12 +60,13 @@ int ipow(int, int);
 
 program:
 	EOL    { return 0; }
-|	expr EOL
-	{
+|	A_set expr EOL  {
+		if (parser_ret != NULL) *parser_ret = $2;
+		return 0; }
+|	expr EOL    {
 		prev_value = $1;
 		if (parser_ret != NULL) *parser_ret = $1;
-		return 0;
-	}
+		return 0; }
 ;
 
 variable:
@@ -147,6 +148,7 @@ expr:
 |	L_not expr         { $$ = !$2; }
 |	expr '?' expr ':' expr  { $$ = $1 ? $3 : $5; }
 |	'(' expr ')'            { $$ = $2; }
+|	'$' variable       { $$ = * (int *) $2; }
 |	function                { $$ = $1; }
 |	assignment              { $$ = $1; }
 |	range                   { $$ = $1; }

@@ -40,15 +40,15 @@ isc uses vim bindings to move the cursor.
          sets curent box to the modifier number
 
 commands:
-most C like expressions are suported
+most C-like expressions are suported
 `1 + 4,   a += 4,   f /= (c4 + 3) * 22`.
 inline comments `//` are suported.
 there are one letter variables `[a-z]`.
 cells can be addsseres as `[a-z][0-9]+`, where the row (second) is decimal.
 range operators are operators that work on a range of numbers in a single column.
 they are:
-	- `>`, `max` larges value
-	- `<`, `min` smalles value
+	- `>`, `max` largest value
+	- `<`, `min` smallest value
 	- `+`, `-`, `*` add, substract and multiply all values
 	- `&|^` bitwise and, or, xor respectively
 	- `avg`, `count` avrage and count of all nonsero values
@@ -60,6 +60,18 @@ functions:
 	- avg(a, b)  average of two numbers
 
 
+Search
+------
+basic patern matching is supported:
+	- `*` any characters characters
+	- `[` character class
+if a class starts with `^` it matches any character not in the class.
+a range of character may be defined with `-` (0-7). character class eds with `]`.
+`\` defaults to literal `\`, if you want to put literal `]` in the class make
+it the first character after `^` if any, if you want literal `-` put it in the end of
+the class, literal `^` can be put anywhere in the class. example: `r[1-9], n[ou]ll`.
+
+
 File format
 -----------
 isc format is made to be human readable.
@@ -67,7 +79,6 @@ lines represent rows and columns are separated by `,`. each item can contain
 a number or `,` (or newline) terminated string starting with `>`, optionaly preceedet
 by a number. `#` is begins a comment, lines starting with `#` are ignored.
 example:
-
 ```
 # contains random numbers and hello world
 1563,55,>hello
