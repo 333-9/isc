@@ -6,9 +6,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
+#include <setjmp.h>
+// system specific:
 #include <sys/ioctl.h>
+#include <err.h>
 #include <histedit.h>
 
 #include "draw.h"
@@ -28,34 +33,22 @@ die(s)  die_line_num(__LINE__, s)
 
 
 
+struct vsheet    *sheet = NULL;
+struct cmt_list  *text  = NULL;
 
-char  *parser_input_str;
+static jmp_buf  on_error;
+char  *default_file = "out.csv";
+const char  *parser_input_str;
 int  row_changed_first;
 int  row_changed_last;
-
-
-int rows = 20;
-char *default_file = "out.csv";
-
-
-
-
-int mark_col = 0;
-int mark_row = 0;
-int sel_col = 0;
-int sel_row = 0;
-size_t  scroll_offset = 0;
-
-struct {
-	size_t height;
-	size_t width;
-} terminal_status;
-
+int  rows  = 20;
+int  scroll_offset = 0;
+int  sel_col       = 0;
+int  sel_row       = 0;
+//int mark_col = 0;
+//int mark_row = 0;
 EditLine *editline;
 const char *prompt;
-
-struct vsheet  *sheet = NULL;
-struct cmt_list   *text  = NULL;
 
 
 
@@ -63,7 +56,7 @@ struct cmt_list   *text  = NULL;
 static int   setup(char *[]);
 static void  update_screen(void);
 static int   get_term_rows(void);
-static char *get_el_prompt(void *);
+static const char *get_el_prompt(void *);
 static void  csv_read(char *);
 static void  csv_write(const char *);
 static int   csv_get_row_width(int);
@@ -76,7 +69,6 @@ static void  move_selection(int, int);
 static void  scroll_up(int);
 static void  scroll_down(int);
 static void  box_set_num(void);
-static void  box_add_num(void);
 static void  box_set_text(void);
 static void  box_search(void);
 static void  parse_text(void);
@@ -92,18 +84,16 @@ void  die_line_num(int, const char *);
 
 
 
-extern yylex(void);
+extern int yylex(void);
+
 
 void
 yyerror(int *not_used, char *s)
 {
 	static char *prev = NULL;
 	if (s == NULL && prev != NULL) {
-		draw_box_str(C_error,  9, 1, 1, "\x1b[K"); /* clear comand line area */
-		draw_box_str(C_error,  7, 1, 1, "Parser:");
-		draw_box_str(C_error,200, 1, 9, prev); /* draw error message */
-		prev = NULL;
-		parser_input_str = NULL;
+		drawf(1, 1, "\033[K%eParser: %s", "0;31", prev);
+		parser_input_str = prev = NULL;
 		while (yylex()) ; /* clear lex input */
 	} else {
 		prev = s;
@@ -111,30 +101,35 @@ yyerror(int *not_used, char *s)
 }
 
 
+/* === */
 
 
 static int
 setup(char *argv[])
 {
-	/* --- var init --- */
 	parser_input_str = NULL;
 	rows = get_term_rows() - 2;
-	if ((sheet = vsheet_init(columns)) == NULL) die("falied to allocate");
-	if (vsheet_add_rows(&sheet, rows) < 0) die("failed to realloc");
-	if ((text = cmt_list_init()) == NULL) die("falied to allocate");
-	if (argv[1] != NULL) { /* csv_read expects allocated sheet */
-		csv_read(argv[1]);
-	};
-	/* --- ehitline init --- */
-	if ((editline = el_init("isc", fdopen(0, "r"), stdout, stderr)) == NULL) {
-		die("editline failed");
-	} else {
-		el_set(editline, EL_EDITOR, "vim");
-		el_set(editline, EL_PROMPT, get_el_prompt);
-	}
+	sheet = vsheet_init(columns);
+	if (sheet == NULL)
+		err(1, "vsheet");
+	if (vsheet_add_rows(&sheet, rows) < 0)
+		err(1, "vsheet");
+	text = cmt_list_init();
+	if (text == NULL)
+		err(1, "cmt_list");
+	if (argv[1] != NULL && argv[1][0] != '-')
+		default_file = argv[1];
+	csv_read(default_file);
+	/* --- */
+	editline = el_init("isc", fdopen(0, "r"), stdout, stderr);
+	if (editline == NULL)
+		err(1, "editline");
+	el_set(editline, EL_EDITOR, "vim");
+	el_set(editline, EL_PROMPT, get_el_prompt);
 	terminal_init();
 	terminal_buffer_enable();
 	update_screen();
+	return 0;
 }
 
 
@@ -142,11 +137,11 @@ static void
 update_screen()
 {
 	int i;
-	drawf(1, 1, "\033[J\n     %e", "2");
+	drawf(1, 1, "\033[J\n     %e", C_ind);
 	for (i = 0; i < columns; i++)
 		fprintf(stderr, "   %c  ", 'a' + i);
 	for (i = 0; i < rows; i++)
-		drawf(0, 0, "\n%e%5d%e%6ad", "32", scroll_offset + i, "0;32",
+		drawf(0, 0, "\n%e%5d%e%6ad", C_ind, scroll_offset + i, C_number,
 		       vsheet_get_num(sheet, scroll_offset + i, 0), columns);
 	update_text(0);
 	move_selection(0, 0); /* draw cursor */
@@ -162,7 +157,7 @@ get_term_rows(void)
 }
 
 
-static char *
+static const char *
 get_el_prompt(void *not_used)
 {
 	fputs("\e[?25h", stderr); /* enable cursor */
@@ -170,19 +165,24 @@ get_el_prompt(void *not_used)
 }
 
 
+/* 
+ * expects allocated sheet
+ */
 static void
 csv_read(char *file_name)
 {
 	FILE *stream;
 	char *mem = NULL;
 	size_t i = 0;
-	if ((stream = fopen(file_name, "r")) == NULL) die("failed to open file");
+	stream = fopen(file_name, "r");
+	if (stream == NULL) err(1, "fopen");
 	default_file = file_name;
 	csv_parse(NULL);
+	errno = 0;
 	while (getline(&mem, &i, stream) > 0) {
 		csv_parse(mem);
-		//putc('\n', stderr);
 	};
+	if (errno == ENOMEM) err(1, "getline");
 	fclose(stream);
 	free(mem);
 }
@@ -206,8 +206,8 @@ csv_write(const char *file_name)
 			val = sheet->vals[(r * sheet->cols) + c];
 			if (val) {
 				if (str != NULL && *str != '\0')
-					fprintf(stream, "%lli\"%s\"", val, str);
-				else fprintf(stream, "%lli", val);
+					fprintf(stream, "%d\"%s\"", val, str);
+				else fprintf(stream, "%d", val);
 			} else if (str != NULL && *str != '\0') {
 				fprintf(stream, "\"%s\"", str);
 			};
@@ -269,8 +269,7 @@ csv_parse(char *str)
 	for (;;) {
 		value = strtoll(str, &tmp, 0);
 		if (vsheet_set_box(&sheet, row, col, value) < 0)
-			die("failed to realloc");
-		//fprintf(stderr, " %lli ", value);
+			err(1, "vsheet");
 		str = tmp;
 csv_parse_switch:
 		switch (*str) {
@@ -289,9 +288,9 @@ csv_parse_switch:
 		case '`':
 			tmp = csv_parse_str(str);
 			cmt = cmt_list_new(&text, row, col);
-			if (cmt == NULL) return 1;
+			if (cmt == NULL) err(1, "cmt_list");
 			cmt->s = strdup(++str);
-			if (tmp == NULL) return 0;
+			if (tmp == NULL) err(1, "strdup");
 			else str = ++tmp;
 			goto csv_parse_switch;
 			break;
@@ -301,7 +300,7 @@ csv_parse_switch:
 			if ((tmp = strchr(str, ',')) == NULL) {
 				str[strlen(str) - 1] = '\0'; /* should never segfault */
 				cmt = cmt_list_new(&text, row, col);
-				if (cmt == NULL) return 1;
+				if (cmt == NULL) err(1, "cmt_list");
 				cmt->s = strdup(str);
 				row += 1;
 				col = 0;
@@ -309,7 +308,7 @@ csv_parse_switch:
 			} else {
 				*tmp = '\0';
 				cmt = cmt_list_new(&text, row, col);
-				if (cmt == NULL) return 1;
+				if (cmt == NULL) err(1, "cmt_list");
 				cmt->s = strdup(str);
 				col += 1;
 				str = tmp + 1;
@@ -395,7 +394,8 @@ run(void)
 				break;
 			};
 		case 'w': csv_write(default_file); break;
-		case 'q': return 0;
+		case 'q':
+			return 0;
 		default:
 			putc('\a', stderr);
 			count = 0;
@@ -413,18 +413,18 @@ move_selection(int r, int c)
 #	define SROW (sel_row + 3)
 	int n;
 	n = *sel_get_num();
-	if(n) drawf(SROW, SCOL -1, " %e%5d ", "0", n);
+	if(n) drawf(SROW, SCOL -1, " %e%5d ", C_number, n);
 	else  drawf(SROW, SCOL -1, "       ");
-	drawf(SROW, 1, "%e%5d", "0", scroll_offset + sel_row); /* row numbers */
-	drawf(2, SCOL, "  %e%c  ", "0", 'a' + sel_col); /* column numbers */
+	drawf(SROW, 1, "%e%5d", C_ind, scroll_offset + sel_row); /* row numbers */
+	drawf(2, SCOL, "  %e%c  ", C_ind, 'a' + sel_col); /* column numbers */
 	update_cursor_text(0);
 	drawf(1, 1, "\033[K"); /* clear command line */
 	sel_col = sel_col + c >= 0 ? sel_col +c : 0;
 	if (sel_col >= columns) sel_col = columns - 1;
 	if (r != 0) (r < 0 ? scroll_up(-r) : scroll_down(r));
-	drawf(SROW, SCOL -1, "%e[\033[5C]", "0"); /* cursor */
-	drawf(SROW, 1, "%e>%4d", "0", scroll_offset + sel_row); /* row numbers */
-	drawf(2, SCOL, "  %e%c  ", "0", 'a' + sel_col); /* column numbers */
+	drawf(SROW, SCOL -1, "%e[\033[5C]", C_cursor); /* cursor */
+	drawf(SROW, 1, "%e>%4d", C_cursor, scroll_offset + sel_row); /* row numbers */
+	drawf(2, SCOL, "  %e%c  ", C_cursor, 'a' + sel_col); /* column numbers */
 	update_cursor_text(1);
 	yyerror(NULL, NULL); /* draw error messages */
 #	undef SCOL
@@ -440,19 +440,20 @@ scroll_up(int r)
 	if (sel_row >= 0) return ;
 	r = -sel_row;
 	sel_row = 0;
-	if (r > 8 && scroll_offset >= r) {
+	if (r > 8) {
 		scroll_offset -= r;
+		if (scroll_offset < 0) scroll_offset = 0;
 		fputs("\033[1J", stderr);
 		update_screen();
 		return ;
 	};
 	for (; scroll_offset && r; r--) {
 		fputs("\x1b[T", stderr); /* scroll Down */
-		drawf(1, 1, "\033[K\n     %e", "2");
+		drawf(1, 1, "\033[K\n     %e", C_ind);
 		for (i = 0; i < columns; i++) fprintf(stderr, "   %c  ", 'a' + i);
 		drawf(3, 6, "\033[K");
 		scroll_offset -= 1;
-		drawf(3, 1, "%5d%e%6ad", scroll_offset, "0;32",
+		drawf(3, 1, "%e%5d%e%6ad", C_ind, scroll_offset, C_number,
 			vsheet_get_num(sheet, scroll_offset, 0), columns);
 		update_text(1); /* draw text */
 	};
@@ -469,26 +470,23 @@ scroll_down(int r)
 	} else {
 		r = sel_row - rows + 1;
 		sel_row = rows - 1;
+		if (scroll_offset + rows + r >= sheet->rows)
+			if (vsheet_add_rows(&sheet, r) < 0) die("Failed to realloc");
 		if (r > 8) {
 			scroll_offset += r;
 			if (scroll_offset + rows >= 99999)
-				scroll_offset = 99999 - sel_row;
-			if (scroll_offset + rows >= sheet->rows)
-				/* this might allocate more than needet */
-				if (vsheet_add_rows(&sheet, r) < 0) die("Failed to realloc");
+				scroll_offset = 99999 - rows;
 			fputs("\033[1J", stderr);
 			update_screen();
 			return ;
 		};
 	};
-	for (; r > 0 && (scroll_offset + sel_row) < 99999; r--) {
+	for (; r > 0 && (scroll_offset + rows) < 99999; r--) {
 		fputs("\x1b[S", stderr); /* scroll Up */
-		drawf(1, 1, "\033[K\n     %e", "2");
+		drawf(1, 1, "\033[K\n     %e", C_ind);
 		for (i = 0; i < columns; i++) fprintf(stderr, "   %c  ", 'a' + i);
 		scroll_offset += 1;
-		if (scroll_offset + rows >= sheet->rows)
-			if (vsheet_add_rows(&sheet, 1) < 0) die("Failed to realloc");
-		drawf(rows +2, 1, "%5d%e%6ad", scroll_offset + rows -1, "0;32",
+		drawf(rows +2, 1, "%e%5d%e%6ad", C_ind, scroll_offset + rows -1, C_number,
 		         vsheet_get_num(sheet, scroll_offset + rows -1, 0), columns);
 		update_text(-1); /* draw text */
 	};
@@ -574,7 +572,7 @@ box_search(void)
 				return ;
 			};
 		};
-		drawf(1, 1, "%ePattern not found !", "0;32");
+		drawf(1, 1, "%ePattern not found !", C_error);
 		free(re);
 	};
 }
@@ -589,6 +587,7 @@ parse_text(void)
 	i = *sel_get_num();
 	if (yyparse(&i) == 0) {
 		*sel_get_num() = i;
+		yylex();
 	};
 	move_selection(0, 0);
 }
@@ -607,7 +606,7 @@ update_text_row(int row)
 		c = ((text->list[i].col + 1) * 6) + 1;
 		switch (text->list[i].s[0]) {
 		case '!':
-			drawf(r, c, "%e%s", "0", text->list[i].s +1);
+			drawf(r, c, "%e%s", C_text, text->list[i].s +1);
 			tmp = strlen(text->list[i].s +1) / 6;
 			i = cmt_list_get_from(&text, scroll_offset + row,
 				text->list[i].col + tmp);
@@ -615,10 +614,10 @@ update_text_row(int row)
 		case '=':
 			n = *vsheet_get_num(sheet,
 			    text->list[i].row, text->list[i].col);
-			drawf(r, c, "%e%5d", "0;35", n);
+			drawf(r, c, "%e%5d", C_special, n);
 			break;
 		default:
-			drawf(r, c, "%e%5s", "0", text->list[i].s);
+			drawf(r, c, "%e%5s", C_text, text->list[i].s);
 			break;
 		};
 	};
@@ -635,12 +634,12 @@ update_cursor_text(int update_command_line)
 		update_text_row(sel_row);
 		if (update_command_line) {
 			drawf(1, 1, "\033[K%e [ %d ] %e%s",
-			    "2", *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col),
-			    "0", str);
+			    C_number, *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col),
+			    C_text, str);
 		};
 	} else if (update_command_line) {
 		drawf(1, 1, "\033[K%e [ %d ]",
-		    "2", *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col));
+		    C_number, *vsheet_get_num(sheet, sel_row + scroll_offset, sel_col));
 	};
 }
 
@@ -668,8 +667,9 @@ update_nums(int ra, int rb)
 	else if (ra > scroll_offset + rows) return ;
 	else if (rb < scroll_offset) return ;
 	else if (rb > scroll_offset + rows) rb = scroll_offset + rows;
+	fprintf(stderr, "\033[%sm", C_number);
 	for (i = ra; i < rb; i++)
-		drawf(i - scroll_offset + 3, 6,  "%e%6ad", "0;32",
+		drawf(i - scroll_offset + 3, 6,  "%6ad",
 		      vsheet_get_num(sheet, i, 0), columns);
 	update_text(0);
 }
@@ -693,8 +693,8 @@ sel_get_num()
 static void
 restore(void)
 {
-	terminal_restore();
 	terminal_buffer_disable();
+	terminal_restore();
 	vsheet_free(sheet);
 	el_end(editline);
 }
@@ -703,10 +703,10 @@ restore(void)
 void
 die_line_num(int n, const char *s)
 {
-	terminal_restore();
 	terminal_buffer_disable();
-	fprintf(stderr, "line %i: %s\n", n, s);
-	exit(1);
+	terminal_restore();
+	fprintf(stderr, "line %i: %s\f\r", n, s);
+	longjmp(on_error, 1);
 }
 
 
@@ -715,8 +715,13 @@ die_line_num(int n, const char *s)
 int
 main(int argc, char *argv[])
 {
-	setup(argv);
-	run();
-	restore();
+	errno = 0;
+	if (!setjmp(on_error)) {
+		setup(argv);
+		run();
+		restore();
+	} else {
+		return 1;
+	};
 	return 0;
 }

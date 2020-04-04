@@ -116,12 +116,14 @@ struct cmt_list *
 cmt_list_init(void)
 {	struct cmt_list *ret;
 	int i;
-	ret = malloc(sizeof(struct cmt_list) + (CMT_LIST_CHUNK * sizeof(struct comment)));
+	ret = malloc(sizeof(struct cmt_list) +
+	            CMT_LIST_CHUNK * sizeof(struct comment));
 	if (ret == NULL) return NULL;
 	ret->sz = CMT_LIST_CHUNK;
 	for (i = 0; i < ret->sz; i++) {
 		ret->list[i].s = NULL;
 	};
+	return ret;
 }
 
 
@@ -131,30 +133,28 @@ cmt_list_get_from(struct cmt_list **cl, int r, int c)
 	size_t i;
 	for (i = 0; i < (*cl)->sz; i++) {
 		if ((*cl)->list[i].s == NULL) break;
-		if ((r < (*cl)->list[i].row) ||
-		   ((r == (*cl)->list[i].row) &&
-		    (c <= (*cl)->list[i].col))) {
+		if (r < (*cl)->list[i].row)
 			return i;
-		};
+		if ((r == (*cl)->list[i].row)
+		&&  (c <= (*cl)->list[i].col))
+			return i;
 	};
-	return ((*cl)->sz);
+	return ((*cl)->sz - 1);
 }
 
 
 int
-cmt_sort_compare(const void *aa, const void *ba)
+cmt_sort_compare(
+    const void *arga,
+    const void *argb)
 {
 	const struct comment *a, *b;
-	a = aa;
-	b = ba;
-	if (b->s == NULL && a->s == NULL) return 0;
-	else if (b->s == NULL) return -1;
-	else if (a->s == NULL) return  1;
-	else if (a->row < b->row) return -1;
-	else if (a->row > b->row) return  1;
-	else if (a->col < b->col) return -1;
-	else if (a->col > b->col) return  1;
-	else return 0;
+	a = arga;
+	b = argb;
+	if (b->s == NULL && a->s == NULL)  return (!a->s) - (!b->s);
+	if (a->row != b->row)  return a->row - b->row;
+	if (a->col != b->col)  return a->col - b->col;
+	return 0;
 }
 
 

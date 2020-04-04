@@ -20,6 +20,7 @@ size_t _input(char *buf, int sz) {
 		return (size + 1);
 	} else {
 		strncpy(buf, parser_input_str, sz);
+		parser_input_str = NULL;
 		return (sz);
 	};
 }

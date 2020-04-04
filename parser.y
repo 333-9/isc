@@ -16,7 +16,7 @@ int yylex();
 int ipow(int, int);
 
 
-#define DIV_Z(i)  if (i == 0) { yyerror(NULL, "division by zero error"); return (-1); }
+#define DIV_Z(i)  if ((i) == 0) { yyerror(NULL, "division by zero error"); return (-1); }
 #define PAFR(a, b, c, d, e)  parser_assign_for_range(a, b, c, d, e)
 
 %}
@@ -79,8 +79,8 @@ assignment:
 |	variable A_add expr   { $$ = *((int *) $1)  += $3; }
 |	variable A_sub expr   { $$ = *((int *) $1)  -= $3; }
 |	variable A_mul expr   { $$ = *((int *) $1)  *= $3; }
-|	variable A_div expr   { DIV_Z(!$3);  $$ = *((int *) $1) /= $3; }
-|	variable A_mod expr   { DIV_Z(!$3);  $$ = *((int *) $1) %= $3; }
+|	variable A_div expr   { DIV_Z($3);  $$ = *((int *) $1) /= $3; }
+|	variable A_mod expr   { DIV_Z($3);  $$ = *((int *) $1) %= $3; }
 |	variable A_and expr   { $$ = *((int *) $1)  &= $3; }
 |	variable A_or  expr   { $$ = *((int *) $1)  ^= $3; }
 |	variable A_xor expr   { $$ = *((int *) $1)  |= $3; }

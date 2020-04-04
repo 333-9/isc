@@ -25,13 +25,13 @@ drawf(uint8_t r, uint8_t c, const char *format, ...)
 	int fsz, arr_sz, i, *arr;
 	char *str;
 	uint64_t num;
-	if (r > 0) fprintf(stderr, "\033[%hu;%huH", r, c);
+	if (r > 0) fprintf(stderr, "\033[%hhu;%hhuH", r, c);
 	for (; *format; format++) {
 		if (*format != '%') {
 			fputc(*format, stderr);
 			continue;
 		};
-		fsz = strtol(++format, &format, 0);
+		fsz = strtol(++format, (char **) &format, 0);
 		if (*format == '*') {
 			fsz = va_arg(args, int);
 			format++;
@@ -99,8 +99,50 @@ drawf(uint8_t r, uint8_t c, const char *format, ...)
 }
 
 
+
+
+struct plot_dimentions
+{
+	int height, width;
+	int visible_height;
+};
+
+struct plot_data
+{
+	int *base; /* first line */
+	size_t sz; /* number of lines */
+	int off[4]; /* offset between columns */
+	int row_sz; /* line width */
+};
+
+
+int
+plot(int type, int height, int width, int *data, size_t sz)
+{
+	int min, max;
+	int temp;
+	min = 0;
+	max = 100;
+	switch (type) {
+	case 1:
+		if (sz < height) {
+		} else if (sz == height) {
+			temp  = *data - min;
+			temp *= (int) (width * max);
+		//} else if (scroll) {
+		} else {
+		};
+		return 0;
+	};
+	return 1;
+}
+
+
+
+
+/*
 void
-draw_box_str(char color, int width, short row, short col, const char *text)
+draw_box_str(char color, int, short row, short col, const char *text)
 {
 	if (width < 1) return ;
 	if (strlen(text) > width) {
@@ -154,7 +196,7 @@ draw_table_num(char color, int width, short row, short col, short gap,
 		return ;
 	};
 }
-
+*/
 
 /*
 void
@@ -178,7 +220,7 @@ draw_column_num(char color, int width, short row, short col, int *arr, size_t sz
 }
 */
 
-
+/*
 void
 draw_row_numbering(char c, short row, short col, short n1, short n2)
 {
@@ -204,7 +246,7 @@ draw_column_numbering(char c, short row, short col, short c1, short c2)
 		putc(c1, stderr);
 	};
 }
-
+*/
 
 
 /*

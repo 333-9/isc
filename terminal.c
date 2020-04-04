@@ -10,7 +10,7 @@
 
 
 
-struct termios  term_attr_old;
+static struct termios  term_attr_old;
 
 
 
@@ -78,17 +78,17 @@ terminal_init(void)
 void
 terminal_restore(void) {
 	tcsetattr(0, TCSANOW, &term_attr_old);
-	fputs("\e[?25h", stderr); /* enable cursor */
+	fputs("\e[?25h", stdout); /* enable cursor */
 }
 
 
 void
 terminal_buffer_enable(void) {
-	fputs("\x1b[?1049h\x1b[?25l\x1b[H", stderr);
+	fputs("\e[?1049h\e[H", stderr);
 }
 
 
 void
 terminal_buffer_disable(void) {
-	fputs("\x1b[?1049l\x1b[?25h", stderr);
+	fputs("\e[?1049l", stderr);
 }

@@ -1,24 +1,10 @@
 const unsigned short  columns  = 12;
-const unsigned short  box_size = 20;
 
 
-/* colors */
-enum Color {
-	Black   = 0,
-	Red     = 1,
-	Green   = 2,
-	Yellow  = 3,
-	Blue    = 4,
-	Magenta = 5,
-	Aqua    = 6,
-	White   = 7,
-	Grey    = 8,
-};
-
-const char C_cursor     = 46;//226;
-const char C_command    = 46;//226;
-const char C_ind        = 240;//240;
-const char C_number     = 70;//245;
-const char C_special    = 6;
-const char C_text       = 250;//82;
-const char C_error      = Red;//Red;
+const char *C_cursor     = "0;38;5;46";
+const char *C_command    = "0;38;5;46";
+const char *C_ind        = "0;38;5;240";
+const char *C_number     = "0;38;5;70";
+const char *C_special    = "4;38;5;6";
+const char *C_error      = "0;38;5;1";
+const char *C_text       = "0;38;5;250";

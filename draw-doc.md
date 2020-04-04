@@ -26,3 +26,10 @@ field width amount of characters -1 and append a single star (*).
 drawf(20, 4, "%e[%e%i%e]", C_cursor, C_number, arr[i], C_cursor);
 
 ```
+
+
+# drawf2
+format suports loops on pointers
+example: ```  "`4[` %d `]`\n"  ```
+will draw numbers 1 to 4 seperated by a space
+```  "{`*[` %d,`]` }"  ```
