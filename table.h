@@ -7,7 +7,7 @@
  * >0 warning
  */
 
-
+#if 0
 typedef int Box_int;
 
 struct vsheet {
@@ -54,6 +54,7 @@ size_t  cmt_list_get_from(struct cmt_list **, int, int);
 char   *cmt_list_str(struct cmt_list **, size_t, size_t);
 int     cmt_list_update(struct cmt_list **);
 
+#endif
 
 // --------------------------------------
 
@@ -74,19 +75,19 @@ int * sheet_next (struct sheet *p);
 
 
 
-struct _comment {
+struct text {
 	unsigned size;
 	unsigned i;
 	int   *ind;  // SOA
 	char **str;  // ^^^
 };
 
-int    _comment_init   (struct _comment *);
-void   _comment_free   (struct _comment *);
-char * _comment_set    (struct _comment *, unsigned, char *);
-char * _comment_remove (struct _comment *, unsigned);
-char * _comment_get    (struct _comment *, unsigned);
-char * _comment_next   (struct _comment *);
+int    comment_init   (struct text *);
+void   comment_free   (struct text *);
+char * comment_set    (struct text *, unsigned, char *);
+char * comment_remove (struct text *, unsigned);
+char * comment_get    (struct text *, unsigned);
+char * comment_next   (struct text *);
 
 
 /* EOF */

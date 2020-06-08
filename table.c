@@ -80,7 +80,7 @@ sheet_next(struct sheet *p)
 
 
 int
-_comment_init(struct _comment *c)
+comment_init(struct text *c)
 {
 	c->size = 16;
 	c->i = 0;
@@ -95,7 +95,7 @@ _comment_init(struct _comment *c)
 
 
 void
-_comment_free(struct _comment *c)
+comment_free(struct text *c)
 {
 	c->size = 0;
 	c->i = 0;
@@ -106,7 +106,7 @@ _comment_free(struct _comment *c)
 
 
 static int
-_comment_realloc(struct _comment *c, int fact)
+comment_realloc(struct text *c, int fact)
 {
 	void *ind, *str;
 	if (fact < 0) {
@@ -136,31 +136,31 @@ _comment_realloc(struct _comment *c, int fact)
 
 
 static int
-_comment_ind_cmp(const int *a, const int *b ) {
+comment_ind_cmp(const int *a, const int *b ) {
 	return (*b < 0) ? -!(*a < 0) : *a - *b;
 }
 
 
 static unsigned
-_comment_search(struct _comment *c, unsigned ind)
+comment_search(struct text *c, unsigned ind)
 {
 	void *p;
 	if (c->ind[0] == -1) return 0;
 	p = bsearch(&ind, c->ind, c->size, sizeof(c->ind[0]),
-	    (int (*)(const void *, const void *)) &_comment_ind_cmp);
+	    (int (*)(const void *, const void *)) &comment_ind_cmp);
 	return (unsigned) (p - (size_t) c->ind);
 }
 
 
 char *
-_comment_set(struct _comment *c, unsigned ind, char *str)
+comment_set(struct text *c, unsigned ind, char *str)
 {
 	unsigned i;
-	i = _comment_search(c, ind);
+	i = comment_search(c, ind);
 	if (c->ind[i] != ind)
 		return (c->str[c->ind[i] = ind] = str);
 	if (c->ind[c->size -1] != -1)
-		if (_comment_realloc(c, +1) < 0) return NULL;
+		if (comment_realloc(c, +1) < 0) return NULL;
 	memmove(c->ind +i+1, c->ind +i, sizeof(c->ind[0]) * (c->size -1));
 	memmove(c->str +i+1, c->str +i, sizeof(c->str[0]) * (c->size -1));
 	c->ind[i] = ind;
@@ -170,14 +170,14 @@ _comment_set(struct _comment *c, unsigned ind, char *str)
 
 
 char *
-_comment_remove(struct _comment *c, unsigned ind)
+comment_remove(struct text *c, unsigned ind)
 {
 	unsigned i;
 	char *str;
-	i = _comment_search(c, ind);
+	i = comment_search(c, ind);
 	if (c->ind[i] != ind) return NULL;
 	str = c->str[i];
-	if (_comment_realloc(c, -1) < 0) return NULL;
+	if (comment_realloc(c, -1) < 0) return NULL;
 	memmove(c->ind +i, c->ind +i+1, sizeof(c->ind[0]) * (c->size -1));
 	memmove(c->str +i, c->str +i+1, sizeof(c->str[0]) * (c->size -1));
 	c->str[c->size -1] = NULL;
@@ -187,12 +187,12 @@ _comment_remove(struct _comment *c, unsigned ind)
 
 
 char *
-_comment_get(struct _comment *c, unsigned ind)
+comment_get(struct text *c, unsigned ind)
 {
 	char *str;
 	if (ind > c->size || c->ind[ind] < 0)
 		return NULL;
-	c->i = _comment_search(c, ind);
+	c->i = comment_search(c, ind);
 	if (c->ind[c->i] != ind) {
 		c->i = 0;
 		return NULL;
@@ -202,7 +202,7 @@ _comment_get(struct _comment *c, unsigned ind)
 
 
 char *
-_comment_next(struct _comment *c)
+comment_next(struct text *c)
 {
 	char *str;
 	if (c->i >= c->size) return NULL;
@@ -213,7 +213,7 @@ _comment_next(struct _comment *c)
 
 
 
-
+#if 0
 // -------------------  old  -------------------
 
 
@@ -305,10 +305,10 @@ vsheet_update(struct vsheet *s)
 
 
 // NOTE: not used
-struct comment *
+struct text *
 comment_setup(char *str, size_t row, char col, char type, char *metadata)
 {	struct comment *cmt;
-	if ((cmt = malloc(sizeof(struct comment))) == NULL) return NULL;
+	if ((cmt = malloc(sizeof(struct text))) == NULL) return NULL;
 	cmt->row = row;
 	cmt->col = col;
 	if ((cmt->s = malloc(strlen(str) + strlen(metadata) + 2)) == NULL) return NULL;
@@ -324,7 +324,7 @@ cmt_list_init(void)
 {	struct cmt_list *ret;
 	int i;
 	ret = malloc(sizeof(struct cmt_list) +
-	            CMT_LIST_CHUNK * sizeof(struct comment));
+	            CMT_LIST_CHUNK * sizeof(struct text));
 	if (ret == NULL) return NULL;
 	ret->sz = CMT_LIST_CHUNK;
 	for (i = 0; i < ret->sz; i++) {
@@ -365,7 +365,7 @@ cmt_sort_compare(const void *a_, const void *b_)
 int
 cmt_list_update(struct cmt_list **cl)
 {
-	qsort((*cl)->list, (*cl)->sz, sizeof(struct comment), cmt_sort_compare);
+	qsort((*cl)->list, (*cl)->sz, sizeof(struct text), cmt_sort_compare);
 	return 0;
 }
 
@@ -388,7 +388,7 @@ cmt_list_str(struct cmt_list **cl, size_t r, size_t c) /* expects sorted list */
 }
 
 
-struct comment *
+struct comment*
 cmt_list_new(struct cmt_list **cl, int r, int c)
 {
 	int i;
@@ -410,3 +410,5 @@ cmt_list_new(struct cmt_list **cl, int r, int c)
 	};
 	return NULL;
 }
+
+#endif

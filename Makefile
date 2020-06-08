@@ -2,7 +2,7 @@ CC = clang
 #CC = tcc
 ccflags = -fno-caret-diagnostics -fno-diagnostics-show-option -fno-diagnostics-color -O0
 
-objects = parser.o draw.o table.o range.o regex.o
+objects = parser.o draw.o table.o regex.o
 
 isc: isc.c $(objects) terminal.c config.h
 	$(CC) $(ccflags) -o $@ isc.c -ledit $(objects) terminal.c

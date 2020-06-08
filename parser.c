@@ -34,7 +34,7 @@ Addressing:
 */
 
 
-int parse(char *s, int *val)
+int parse(const char *s, int *val)
 {
 	return 0;
 }

@@ -1,4 +1,4 @@
 //
 
 
-int parse(char *, int *);
+int parse(const char *, int *);
