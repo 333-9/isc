@@ -2,7 +2,7 @@ CC = clang
 #CC = tcc
 ccflags = -fno-caret-diagnostics -fno-diagnostics-show-option -fno-diagnostics-color -O0
 
-objects = scanner.o y.tab.o draw.o table.o range.o regex.o
+objects = parser.o draw.o table.o range.o regex.o
 
 isc: isc.c $(objects) terminal.c config.h
 	$(CC) $(ccflags) -o $@ isc.c -ledit $(objects) terminal.c
@@ -10,11 +10,11 @@ isc: isc.c $(objects) terminal.c config.h
 .c.o:
 	$(CC) $(ccflags) -c $<
 
-y.tab.o: y.tab.c
-y.tab.h: y.tab.c
-y.tab.c: parser.y
-	yacc -d parser.y
-scanner.o: y.tab.h
+#y.tab.o: y.tab.c
+#y.tab.h: y.tab.c
+#y.tab.c: parser.y
+#	yacc -d parser.y
+#scanner.o: y.tab.h
 
 
 .PHONY: install clean

@@ -4,7 +4,7 @@
 #include "regex.h"
 
 
-char * 
+char *
 compile(const char *str)
 {
 	size_t re_sz = 32;
@@ -17,12 +17,8 @@ compile(const char *str)
 		case '?': *p++ = P_ANY;   break;
 		case '*': *p++ = P_STAR;  break;
 		case '[':
-			if (*(++str) == '^') {
-				str++;
-				*p++ = P_NCC;
-			} else {
-				*p++ = P_CC;
-			};
+			*p++ = P_CC + (*(++str) == '^');
+			str += *str == '^';
 			*(ccp = p++) = 0;
 			if (*str == ']') {
 				*p++ = *str++;
