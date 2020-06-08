@@ -1,6 +1,4 @@
-/*
- * isc.h
- */
+/* isc.h */
 
 
 char  *parser_input_str;

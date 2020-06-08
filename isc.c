@@ -1,7 +1,4 @@
-/*
- * wur@guardian
- * date:29.09. 2019
- */
+/* date:29.09. 2019 */
 
 
 #include <stdio.h>
@@ -18,9 +15,9 @@
 
 #include "draw.h"
 #include "table.h"
+#include "parser.h"
 #include "terminal.h"
 #include "regex.h"
-#include "y.tab.h"
 
 #include "config.h"
 
@@ -83,10 +80,7 @@ void  die_line_num(int, const char *);
 
 
 
-
-extern int yylex(void);
-
-
+/* used with yacc
 void
 yyerror(int *not_used, char *s)
 {
@@ -94,14 +88,16 @@ yyerror(int *not_used, char *s)
 	if (s == NULL && prev != NULL) {
 		drawf(1, 1, "\033[K%eParser: %s", "0;31", prev);
 		parser_input_str = prev = NULL;
-		while (yylex()) ; /* clear lex input */
+		while (yylex()) ;
 	} else {
 		prev = s;
 	};
 }
-
+*/
 
 /* === */
+
+
 
 
 static int
@@ -165,7 +161,7 @@ get_el_prompt(void *not_used)
 }
 
 
-/* 
+/*
  * expects allocated sheet
  */
 static void
@@ -298,7 +294,7 @@ csv_parse_switch:
 			str++;
 		default:
 			if ((tmp = strchr(str, ',')) == NULL) {
-				str[strlen(str) - 1] = '\0'; /* should never segfault */
+				str[strlen(str) - 1] = '\0';
 				cmt = cmt_list_new(&text, row, col);
 				if (cmt == NULL) err(1, "cmt_list");
 				cmt->s = strdup(str);
@@ -357,15 +353,9 @@ run(void)
 				count = -1;
 				break;
 			};
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
+		case '1': case '2': case '3':
+		case '4': case '5': case '6':
+		case '7': case '8': case '9':
 			if (count < 0) {
 				count = c - '0';
 				break;
@@ -426,7 +416,7 @@ move_selection(int r, int c)
 	drawf(SROW, 1, "%e>%4d", C_cursor, scroll_offset + sel_row); /* row numbers */
 	drawf(2, SCOL, "  %e%c  ", C_cursor, 'a' + sel_col); /* column numbers */
 	update_cursor_text(1);
-	yyerror(NULL, NULL); /* draw error messages */
+	//yyerror(NULL, NULL); /* draw error messages */
 #	undef SCOL
 #	undef SROW
 }
@@ -497,17 +487,18 @@ static void
 box_set_num(void)
 {
 	int i;
+	char *str;
 	drawf(1, 1, "\033[K");
-	if ((parser_input_str = el_gets(editline, &i)) != NULL) {
-		i = *sel_get_num();
-		if (yyparse(&i) == 0) { /* call parser */
+	str = el_gets(editline, &i);
+	if (str != NULL) {
+		i = 0;
+		if (parse(str, &i) == 0) {
 			*sel_get_num() = i;
 		};
-		parser_input_str = NULL;
-		yylex();
 	};
 	terminal_init();
 	drawf(1, 1, "\033[K");
+	drawf(1, 8, "%s", str);
 	move_selection(1, 0);
 }
 
@@ -582,12 +573,11 @@ static void
 parse_text(void)
 {
 	int i;
-	parser_input_str = cmt_list_str(&text, sel_row + scroll_offset, sel_col);
-	if (parser_input_str == NULL) return ;
-	i = *sel_get_num();
-	if (yyparse(&i) == 0) {
+	char *str;
+	str = cmt_list_str(&text, sel_row + scroll_offset, sel_col);
+	if (str == NULL) return ;
+	if (parse(str, &i) == 0) {
 		*sel_get_num() = i;
-		yylex();
 	};
 	move_selection(0, 0);
 }
