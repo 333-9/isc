@@ -12,8 +12,209 @@
 
 #define VSHI(s, r, c) ((r * s->cols) + c)
 
-
 int cmt_sort_compare(const void *, const void *);
+
+
+
+
+// -------------------
+
+
+
+
+/*
+struct sheet {
+	unsigned bottom;
+	unsigned ind;
+	int * val;
+};
+*/
+
+const unsigned sheet_size = sizeof(int) * 2048;
+
+
+int
+sheet_init(struct sheet *p)
+{
+	p->bottom = 0;
+	p->ind = 0;
+	p->val = malloc(sheet_size);
+	return -(p->val == NULL);
+}
+
+
+void
+sheet_free(struct sheet *p)
+{
+	free(p->val);
+	p->bottom = 0;
+	p->val = NULL;
+}
+
+
+int *
+sheet_get(struct sheet *p, unsigned i)
+{
+	if (i >= p->bottom || p->val == NULL)
+		return NULL;
+	p->ind = i;
+	return p->val + i;
+}
+
+
+int *
+sheet_next(struct sheet *p)
+{
+	if (p->ind + 1 >= p->bottom || p->val == NULL)
+		return NULL;
+	p->ind += 1;
+	return p->val + p->ind;
+}
+
+
+
+
+// -------------------
+
+
+
+
+int
+_comment_init(struct _comment *c)
+{
+	c->size = 16;
+	c->i = 0;
+	c->ind = malloc(sizeof(c->ind[0]) * c->size);
+	c->str = malloc(sizeof(c->str[0]) * c->size);
+	if (c->ind == NULL || c->str == NULL)
+		return -1;
+	memset(c->ind, 0xff, sizeof(c->ind[0]) * c->size);
+	memset(c->str, 0,    sizeof(c->ind[0]) * c->size);
+	return 0;
+}
+
+
+void
+_comment_free(struct _comment *c)
+{
+	c->size = 0;
+	c->i = 0;
+	free(c->ind);  c->ind = NULL;
+	free(c->str);  c->str = NULL;
+	return ;
+}
+
+
+static int
+_comment_realloc(struct _comment *c, int fact)
+{
+	void *ind, *str;
+	if (fact < 0) {
+		if (c->ind[c->size / 2 -1] != -1) return 1;
+		if (c->size <= 16) return 1;
+		c->size /= 2;
+		ind = realloc(c->ind, sizeof(c->ind[0]) * c->size);
+		str = realloc(c->str, sizeof(c->str[0]) * c->size);
+		if (ind == NULL || str == NULL) return -1;
+		c->ind = ind;
+		c->str = str;
+		return 0;
+	} else if (fact > 0) {
+		ind = realloc(c->ind, sizeof(c->ind[0]) * c->size * 2);
+		str = realloc(c->str, sizeof(c->str[0]) * c->size * 2);
+		if (ind == NULL || str == NULL) return -1;
+		c->ind = ind;
+		c->str = str;
+		memset(c->ind + c->size, 0xff, sizeof(c->ind[0]) * c->size);
+		memset(c->str + c->size, 0,    sizeof(c->ind[0]) * c->size);
+		c->size *= 2;
+		return 0;
+	} else {
+		return 1;
+	};
+}
+
+
+static int
+_comment_ind_cmp(const int *a, const int *b ) {
+	return (*b < 0) ? -!(*a < 0) : *a - *b;
+}
+
+
+static unsigned
+_comment_search(struct _comment *c, unsigned ind)
+{
+	void *p;
+	if (c->ind[0] == -1) return 0;
+	p = bsearch(&ind, c->ind, c->size, sizeof(c->ind[0]),
+	    (int (*)(const void *, const void *)) &_comment_ind_cmp);
+	return (unsigned) (p - (size_t) c->ind);
+}
+
+
+char *
+_comment_set(struct _comment *c, unsigned ind, char *str)
+{
+	unsigned i;
+	i = _comment_search(c, ind);
+	if (c->ind[i] != ind)
+		return (c->str[c->ind[i] = ind] = str);
+	if (c->ind[c->size -1] != -1)
+		if (_comment_realloc(c, +1) < 0) return NULL;
+	memmove(c->ind +i+1, c->ind +i, sizeof(c->ind[0]) * (c->size -1));
+	memmove(c->str +i+1, c->str +i, sizeof(c->str[0]) * (c->size -1));
+	c->ind[i] = ind;
+	c->str[i] = str;
+	return c->str[i];
+}
+
+
+char *
+_comment_remove(struct _comment *c, unsigned ind)
+{
+	unsigned i;
+	char *str;
+	i = _comment_search(c, ind);
+	if (c->ind[i] != ind) return NULL;
+	str = c->str[i];
+	if (_comment_realloc(c, -1) < 0) return NULL;
+	memmove(c->ind +i, c->ind +i+1, sizeof(c->ind[0]) * (c->size -1));
+	memmove(c->str +i, c->str +i+1, sizeof(c->str[0]) * (c->size -1));
+	c->str[c->size -1] = NULL;
+	c->ind[c->size -1] = -1;
+	return str;
+}
+
+
+char *
+_comment_get(struct _comment *c, unsigned ind)
+{
+	char *str;
+	if (ind > c->size || c->ind[ind] < 0)
+		return NULL;
+	c->i = _comment_search(c, ind);
+	if (c->ind[c->i] != ind) {
+		c->i = 0;
+		return NULL;
+	};
+	return c->str[c->i];
+}
+
+
+char *
+_comment_next(struct _comment *c)
+{
+	char *str;
+	if (c->i >= c->size) return NULL;
+	str = c->str[c->i];
+	c->i += (c->ind[c->i] >= 0);
+	return str;
+}
+
+
+
+
+// -------------------  old  -------------------
 
 
 
@@ -98,6 +299,12 @@ vsheet_update(struct vsheet *s)
 
 
 
+// ------------------
+
+
+
+
+// NOTE: not used
 struct comment *
 comment_setup(char *str, size_t row, char col, char type, char *metadata)
 {	struct comment *cmt;
@@ -144,13 +351,10 @@ cmt_list_get_from(struct cmt_list **cl, int r, int c)
 
 
 int
-cmt_sort_compare(
-    const void *arga,
-    const void *argb)
+cmt_sort_compare(const void *a_, const void *b_)
 {
-	const struct comment *a, *b;
-	a = arga;
-	b = argb;
+	const struct comment *a = a_;
+	const struct comment *b = b_;
 	if (b->s == NULL && a->s == NULL)  return (!a->s) - (!b->s);
 	if (a->row != b->row)  return a->row - b->row;
 	if (a->col != b->col)  return a->col - b->col;
