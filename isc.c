@@ -36,7 +36,6 @@ struct text   text;
 
 
 static jmp_buf  on_error;
-char  *default_file = "out.csv";
 const char  *parser_input_str;
 int  row_changed_first;
 int  row_changed_last;
@@ -109,17 +108,12 @@ setup(char *argv[])
 	rows = get_term_rows() - 2;
 	data_size = 1;
 	data = malloc(sizeof(struct sheet));
-	if (sheet_init(data) < 0)
-		err(1, "memory allocation error");
-	if (comment_init(&text) < 0)
-		err(1, "memory allocation error");
-	if (argv[1] != NULL && argv[1][0] != '-')
-		default_file = argv[1];
-	csv_read(default_file);
+	if (sheet_init(data) < 0)     err(1, "memory allocation error");
+	if (comment_init(&text) < 0)  err(1, "memory allocation error");
+	csv_read("out.csv");
 	/* --- */
 	editline = el_init("isc", fdopen(0, "r"), stdout, stderr);
-	if (editline == NULL)
-		err(1, "editline");
+	if (editline == NULL) err(1, "editline");
 	el_set(editline, EL_EDITOR, "vim");
 	el_set(editline, EL_PROMPT, get_el_prompt);
 	terminal_init();
@@ -142,10 +136,10 @@ update_screen()
 	num = sheet_get(data, scroll_offset * columns);
 	num = num ? num : &i;
 	for (r = 0; r < rows; r++) {
-		drawf(0, 0, "\n%e%5d%e",
-		      C_ind, scroll_offset + r, C_number);
+		drawf(0, 0, "\n%e%5d%e", C_ind, scroll_offset + r, C_number);
 		for (c = 0; c < columns; c++) {
-			drawf(0, 0, "%6d", *num);
+			if (*num) drawf(0, 0, "%6d", *num);
+			else      drawf(0, 0, "      ");
 			num = sheet_next(data);
 			num = num ? num : &i;
 		};
@@ -182,11 +176,10 @@ csv_read(char *file_name)
 	int r = 0;
 	stream = fopen(file_name, "r");
 	if (stream == NULL) err(1, "fopen");
-	default_file = file_name;
 	errno = 0;
 	while (getline(&mem, &i, stream) > 0)
 		csv_parse(mem, r++);
-	if (errno == ENOMEM) err(1, "");
+	if (errno == ENOMEM) err(1, "csv_read");
 	fclose(stream);
 	free(mem);
 }
@@ -200,14 +193,14 @@ csv_parse(char *line, int r)
 	char  *end;
 	int c = 0;
 	if (line == NULL) return 1;
-	if (*str == '#') return 0;
+	if (*line == '#') return 0;
 	num = sheet_get(data, columns * r);
 	for (;;) {
 		*num = strtol(line, &end, 0);
 		num = sheet_next(data);
-		if (num == NULL) err(1, "");
+		if (num == NULL) err(1, "parse-num");
 		line = end;
-		switch (*str) {
+		switch (*line) {
 		case '#':
 		case '\n':
 		case '\0':
@@ -221,13 +214,14 @@ csv_parse(char *line, int r)
 		case '`':
 			end = csv_parse_str(line);
 			if (end == NULL) return 1;
-			str = malloc((size_t) line - (size_t) end);
-			if (str == NULL) err(1, "");
-			strcpy(str, line);
+			str = malloc((size_t) end - (size_t) line);
+			if (str == NULL) err(1, "parse-str");
+			strcpy(str, line +1);
 			if (comment_set(&text, columns * r + c, str) < 0)
-				err(1, "");
-			line = end + 2;
-			if (line[-1] != ',') return 1;
+				err(1, "parse-text");
+			line = end + 1;
+			if (line[0] != ',') return 1;
+			line++;
 			break;
 		default:
 			return 1;
@@ -240,12 +234,10 @@ static char *
 csv_parse_str(char *str)
 {
 	char quot;
-	quot = *str;
-	str++;
+	quot = *str++;
 	for (; *str; str++) {
 		if (*str == '\\') {
-			str++;
-			if (str == '\0') return NULL;
+			if (*++str == '\0') return NULL;
 		} else if (*str == quot || *str == '\n') {
 			*str = '\0';
 			return str;
@@ -269,21 +261,20 @@ csv_write(const char *file_name)
 	if (stream == NULL)
 	    die("failed to open file");
 	height = csv_get_last_row();
-	text.i = 0;
+	text.last = 0;
+	text.index = -1;
 	data->ind = 0;
 	// write
 	for (r = 0; r < height; r++, off += columns) {
 		width = csv_get_row_width(r);
 		num = sheet_get(data, off);
-		for (c = 0 ; c < width; c++, num = sheet_next(data)) {
-			if (num && *num) {
-				fprintf(stream, "%d", *num);
-			};
-			if (text.ind[text.i] == off + c) {
-				fprintf(stream, "'%s'", text.str[text.i]);
-				text.i += 1;
-			};
+		str = comment_get(&text, off);
+		for (c = 0 ; c < width; c++) {
+			if (*num) fprintf(stream, "%d", *num);
+			if (*str) fprintf(stream, "'%s'", str);
 			putc(',', stream);
+			num = sheet_next(data);
+			str = comment_next(&text);
 		};
 		if (width == 0) putc(',', stream);
 		putc('\n', stream);
@@ -295,6 +286,8 @@ csv_write(const char *file_name)
 static int
 csv_get_row_width(int r)
 {
+	return 0;
+#if 0
 	int i;
 	int off = r * columns;
 	int max = 0;
@@ -306,12 +299,15 @@ csv_get_row_width(int r)
 			max = text.ind[text.i +i] - off;
 	};
 	return max + 1;
+#endif
 }
 
 
 static int
 csv_get_last_row()
 {
+	return 0;
+#if 0
 	int r, max, *num;
 	for (r = 0; r < text.size; r++)
 		if (text.ind[r] < 0) break;
@@ -321,6 +317,7 @@ csv_get_last_row()
 		num = sheet_get(data, r * columns);
 	};
 	return max + 1;
+#endif
 }
 
 
@@ -371,7 +368,7 @@ run(void)
 				parse_text();
 				break;
 			};
-		case 'w': csv_write(default_file); break;
+		case 'w': csv_write("out.csv"); break;
 		case 'q':
 			return 0;
 		default:
@@ -502,7 +499,6 @@ box_set_text(void)
 	if (str != NULL && str[0] == '\0') {
 		free(comment_remove(&text, columns * sel_row + sel_col));
 	} else if (str != NULL) {
-		free(comment_remove(&text, columns * sel_row + sel_col));
 		str_ = strdup(str);
 		str_[i-1] = '\0';
 		comment_set(&text, columns * sel_row + sel_col, str_);
@@ -524,24 +520,22 @@ box_search(void)
 		if ((re = compile(str)) == NULL) return ;
 		free(str);
 		drawf(1, 1, "\033[K");
-		for (i = 0; i < text.size; i++) {
-			if (text.str[i] == NULL) break;
-			if (advance(re, text.str[i])) {
-				sel_col = text.ind[i] % columns;
-				sel_row = text.ind[i] / columns;
-				if (sel_row > (scroll_offset + rows)) {
-					scroll_offset = sel_row - rows + 1;
-					sel_row = rows - 1;
-				} else if (sel_row < scroll_offset) {
-					scroll_offset = sel_row;
-					sel_row = 0;
-				} else {
-					sel_row -= scroll_offset;
-				};
-				update_screen();
-				free(re);
-				return ;
+		for (i = 0; i < text.size && text.str[i]; i++) {
+			if (!advance(re, text.str[i])) continue;
+			sel_col = text.ind[i] % columns;
+			sel_row = text.ind[i] / columns;
+			if (sel_row > (scroll_offset + rows)) {
+				scroll_offset = sel_row - rows + 1;
+				sel_row = rows - 1;
+			} else if (sel_row < scroll_offset) {
+				scroll_offset = sel_row;
+				sel_row = 0;
+			} else {
+				sel_row -= scroll_offset;
 			};
+			update_screen();
+			free(re);
+			return ;
 		};
 		drawf(1, 1, "%ePattern not found !", C_error);
 		free(re);
@@ -567,34 +561,31 @@ static void
 update_text_row(int row)
 {
 	int i, r, c, n;
-	int tmp;
-	return ;
-	//
-	// TODO: fix
-#if 0
-	i = comment_get(&text, columns * (scroll_offset + row));
-	for (; text->list[i].row == (scroll_offset + row); i++) {
-		if  (text->list[i].s == NULL) return ;
-		r = text->list[i].row + 3 - scroll_offset;
-		c = ((text->list[i].col + 1) * 6) + 1;
-		switch (text->list[i].s[0]) {
+	int width;
+	char *str;
+	r = scroll_offset + row +3;
+	c = 7;
+	str = comment_get(&text, columns * (scroll_offset + row));
+	for (i = 0; i < columns; i++) {
+		switch (*str) {
+		case '\0':
+			break;
 		case '!':
-			drawf(r, c, "%e%s", C_text, text->list[i].s +1);
-			tmp = strlen(text->list[i].s +1) / 6;
-			i = cmt_list_get_from(&text, scroll_offset + row,
-				text->list[i].col + tmp);
+			drawf(r, c, "%e%s", C_text, str +1);
+			width = strlen(str +1) / 6;
+			while (width--) str = comment_next(&text);
 			break;
 		case '=':
-			n = *vsheet_get_num(sheet,
-			    text->list[i].row, text->list[i].col);
+			n = *sheet_get(data, text.index);
 			drawf(r, c, "%e%5d", C_special, n);
 			break;
 		default:
-			drawf(r, c, "%e%5s", C_text, text->list[i].s);
+			drawf(r, c, "%e%5s", C_text, str);
 			break;
 		};
+		c += 6;
+		str = comment_next(&text);
 	};
-#endif
 }
 
 

@@ -77,7 +77,8 @@ int * sheet_next (struct sheet *p);
 
 struct text {
 	unsigned size;
-	unsigned i;
+	unsigned last;
+	unsigned index;
 	int   *ind;  // SOA
 	char **str;  // ^^^
 };
@@ -88,6 +89,7 @@ char * comment_set    (struct text *, unsigned, char *);
 char * comment_remove (struct text *, unsigned);
 char * comment_get    (struct text *, unsigned);
 char * comment_next   (struct text *);
+int    comment_index  (struct text *);
 
 
 /* EOF */

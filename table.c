@@ -55,9 +55,9 @@ sheet_free(struct sheet *p)
 int *
 sheet_get(struct sheet *p, unsigned i)
 {
-	if (i >= p->bottom || p->val == NULL)
-		return NULL;
-	p->ind = i;
+	if (i > sheet_size) p->ind = sheet_size -1;
+	else if (!p->val) return (int *) &p->bottom;
+	else p->ind = i;
 	return p->val + i;
 }
 
@@ -65,9 +65,8 @@ sheet_get(struct sheet *p, unsigned i)
 int *
 sheet_next(struct sheet *p)
 {
-	if (p->ind + 1 >= p->bottom || p->val == NULL)
-		return NULL;
-	p->ind += 1;
+	if (++p->ind > sheet_size) p->ind = sheet_size -1;
+	else if (!p->val) return (int *) &p->bottom;
 	return p->val + p->ind;
 }
 
@@ -82,14 +81,17 @@ sheet_next(struct sheet *p)
 int
 comment_init(struct text *c)
 {
+	int i;
 	c->size = 16;
-	c->i = 0;
+	c->last  = 0;
+	c->index = 0;
 	c->ind = malloc(sizeof(c->ind[0]) * c->size);
 	c->str = malloc(sizeof(c->str[0]) * c->size);
 	if (c->ind == NULL || c->str == NULL)
 		return -1;
-	memset(c->ind, 0xff, sizeof(c->ind[0]) * c->size);
-	memset(c->str, 0,    sizeof(c->ind[0]) * c->size);
+	//memset(c->ind, 0xff, sizeof(c->ind[0]) * c->size);
+	for (i = 0; i < c->size; i++) c->ind[i] = -1;
+	memset(c->str, 0,    sizeof(c->str[0]) * c->size);
 	return 0;
 }
 
@@ -98,7 +100,8 @@ void
 comment_free(struct text *c)
 {
 	c->size = 0;
-	c->i = 0;
+	c->last = 0;
+	c->index = 0;
 	free(c->ind);  c->ind = NULL;
 	free(c->str);  c->str = NULL;
 	return ;
@@ -109,6 +112,7 @@ static int
 comment_realloc(struct text *c, int fact)
 {
 	void *ind, *str;
+	int i;
 	if (fact < 0) {
 		if (c->ind[c->size / 2 -1] != -1) return 1;
 		if (c->size <= 16) return 1;
@@ -125,8 +129,9 @@ comment_realloc(struct text *c, int fact)
 		if (ind == NULL || str == NULL) return -1;
 		c->ind = ind;
 		c->str = str;
-		memset(c->ind + c->size, 0xff, sizeof(c->ind[0]) * c->size);
-		memset(c->str + c->size, 0,    sizeof(c->ind[0]) * c->size);
+		//memset(c->ind + c->size, 0xff, sizeof(c->ind[0]) * c->size);
+		for (i = 0; i < c->size; i++) c->ind[i] = -1;
+		memset(c->str + c->size, 0,    sizeof(c->str[0]) * c->size);
 		c->size *= 2;
 		return 0;
 	} else {
@@ -135,37 +140,51 @@ comment_realloc(struct text *c, int fact)
 }
 
 
-static int
-comment_ind_cmp(const int *a, const int *b ) {
-	return (*b < 0) ? -!(*a < 0) : *a - *b;
-}
-
-
 static unsigned
 comment_search(struct text *c, unsigned ind)
 {
+	/* NOTE: this should never return negative,
+	 *       or any other error value. */
 	void *p;
-	if (c->ind[0] == -1) return 0;
-	p = bsearch(&ind, c->ind, c->size, sizeof(c->ind[0]),
-	    (int (*)(const void *, const void *)) &comment_ind_cmp);
-	return (unsigned) (p - (size_t) c->ind);
+	int i;
+	for (i = 0; i < c->size; i++) {
+		if (c->ind[i] >= 0 && c->ind[i] < ind) continue;
+		else return i;
+	};
+	return 0;
+	// Old:
+	//p = bsearch(&ind, c->ind, c->size, sizeof(c->ind[0]),
+	//    (int (*)(const void *, const void *)) &comment_ind_cmp);
+	//if (p != NULL)
+	//	return (unsigned) (((size_t) c->ind - (size_t) p) / sizeof(c->ind[0]));
 }
 
 
 char *
 comment_set(struct text *c, unsigned ind, char *str)
 {
+	char *s;
 	unsigned i;
 	i = comment_search(c, ind);
-	if (c->ind[i] != ind)
-		return (c->str[c->ind[i] = ind] = str);
-	if (c->ind[c->size -1] != -1)
-		if (comment_realloc(c, +1) < 0) return NULL;
-	memmove(c->ind +i+1, c->ind +i, sizeof(c->ind[0]) * (c->size -1));
-	memmove(c->str +i+1, c->str +i, sizeof(c->str[0]) * (c->size -1));
-	c->ind[i] = ind;
-	c->str[i] = str;
-	return c->str[i];
+	if (c->ind[i] == ind) {
+		s = c->str[i];
+		c->str[i] = str;
+		return s;
+	};
+	if (c->ind[i] < 0) {
+		c->ind[i] = ind;
+		c->str[i] = str;
+		return NULL;
+	} else {
+		if (c->ind[c->size -1] != -1) {
+			if (comment_realloc(c, +1) < 0) return NULL;
+		};
+		memmove(c->ind +i+1, c->ind +i, sizeof(c->ind[0]) * (c->size -1));
+		memmove(c->str +i+1, c->str +i, sizeof(c->str[0]) * (c->size -1));
+		c->ind[i] = ind;
+		c->str[i] = str;
+		return NULL;
+	};
 }
 
 
@@ -190,25 +209,18 @@ char *
 comment_get(struct text *c, unsigned ind)
 {
 	char *str;
-	if (ind > c->size || c->ind[ind] < 0)
-		return NULL;
-	c->i = comment_search(c, ind);
-	if (c->ind[c->i] != ind) {
-		c->i = 0;
-		return NULL;
-	};
-	return c->str[c->i];
+	c->index = ind;
+	c->last = comment_search(c, ind);
+	return (c->ind[c->last] == c->index) ? c->str[c->last++] : "";
 }
 
 
 char *
 comment_next(struct text *c)
 {
-	char *str;
-	if (c->i >= c->size) return NULL;
-	str = c->str[c->i];
-	c->i += (c->ind[c->i] >= 0);
-	return str;
+	c->index += 1;
+	if (c->last >= c->size) return "";
+	return (c->ind[c->last] <= c->index) ? c->str[c->last++] : "";
 }
 
 
