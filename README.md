@@ -3,16 +3,11 @@ isc - intiger spreadsheet calculator
 simple intiger based spreadsheet calculator
 
 
-Requirements
-------------
-yacc + lex (bison + flex)
-
-
 Insalation
 ----------
 edit config.h to change color and number of columns (changes the way 
 spreadsheets are allocated and read from files (note: number of rows
-changes automaticaly on terminal resize).
+changes automatically on terminal resize).
 
 to install run (as root if necessary):
 
@@ -28,71 +23,43 @@ isc takes just one command like argument, it is the file name
 
 
 Using isc
-----------
+---------
 isc uses vim bindings to move the cursor.
-`hjkl`  movement (mumber modifiers also work)
-`w`  to write to a file
-`q`  to quit
+`hjkl`  movement (20j moves 20 rows down)
+`w`  write to file
+`q`  quit
 `>`  isert text
-`=`  set cell to a result of expression
+`=`  store result of expression in current cell
 `+`  add the result of an expression to the current cell
-`Enter`  parses the text in the curent box as an expression, or
+`Enter`  parses the text in the current box as an expression, or
          sets curent box to the modifier number
 
-commands:
-most C-like expressions are suported
-`1 + 4,   a += 4,   f /= (c4 + 3) * 22`.
-inline comments `//` are suported.
-variables are: `[a-z]`.
-cells can be addsseres as `[a-z][0-9]+`, where the row number is decimal.
-range operators are operators that work on a range of numbers in a single column.
-they are:
-	- `>`, `max` largest value
-	- `<`, `min` smallest value
-	- `+`, `-`, `*` add, substract and multiply all values
-	- `&|^` bitwise and, or, xor respectively
-	- `avg`, `count` avrage and count of all nonsero values
-range assignment operators are similar to assignmest oprerators, but return 0
-`=, +=, *=, ...`, `~` (assigns a random value to a range)
-functions:
-	- pow(a, b)  same as `a**b`
-	- abs(a)     absolute value
-	- avg(a, b)  average of two numbers
+Commands
+--------
+C-like syntax: `1 + 4,   (4 + 3) * 22`.
+Cells can be accessed as row, column: `20f`.
+Result of operations can be "piped" into another cell
+with `>`: `4a + 20 > 2b`.
+You can also specify execution of cells command:
+``` c
+a0 >! a0   pipe value to a2 and execute it's command
+a1 >& a1   execute if is nonzero
+a2 >| a2   execute if is zero
 
+b0 ;  b0   don't pipe value, only execute command
+b1 ;& b1   only execute if nonzero
+b2 ;| b2   only execute if zero
 
-Plots and graphs
-----------------
-todo:
-	- bar
-	- line
-	- column
-	- scatter
-	- bubble
-	- pie
-	- stock
-
-
-Search
-------
-basic patern matching is supported:
-	- `*` any characters characters
-	- `[` character class
-if a class starts with `^` it matches any character not in the class.
-a range of character may be defined with `-` (0-7). character class eds with `]`.
-`\` defaults to literal `\`, if you want to put literal `]` in the class make
-it the first character after `^` if any, if you want literal `-` put it in the end of
-the class, literal `^` can be put anywhere in the class. example: `r[1-9], n[ou]ll`.
+a3 >? a3 : c3   pipe and execute command a3 if nonzero, otherwise execute c3
+b3 ;? b3 : c3   only execute command b3 if nonzero, otherwise execute c3
+```
+NOTE: `>& ; >|` always pipe the value, only execution is conditional
 
 
 File format
 -----------
-isc format is made to be human readable.
-lines represent rows and columns are separated by `,`. each item can contain
-a number or `,` (or newline) terminated string starting with `>`, optionaly preceedet
-by a number. `#` is begins a comment, lines starting with `#` are ignored.
-example:
+.csv format, where numbers and strings can occupy the same cell
 ```
-# contains random numbers and hello world
-1563,55,>hello
-8645,3,0>world,>!,
+1563,55,1"hello", # comment
+8645,30,0"world","!",
 ```
