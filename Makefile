@@ -5,6 +5,7 @@ ccflags = -fno-caret-diagnostics -fno-diagnostics-show-option -fno-diagnostics-c
 objects = parser.o draw.o table.o regex.o
 
 isc: isc.c $(objects) terminal.c config.h
+	#$(CC) $(ccflags) -o $@ isc.c -ledit $(objects) terminal.c
 	$(CC) $(ccflags) -o $@ isc.c -ledit $(objects) terminal.c
 
 .c.o:

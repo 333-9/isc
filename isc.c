@@ -34,11 +34,19 @@ unsigned data_size = 0;
 struct sheet *data = NULL;
 struct text   text;
 
+int no_data = 0;
 
+jmp_buf         on_parser_error;
+const char *    err_msg = "";
 static jmp_buf  on_error;
-const char  *parser_input_str;
-int  row_changed_first;
-int  row_changed_last;
+
+
+struct row_update {
+	int first;
+	int last;
+} // screen update
+update = { -1 };
+
 int  rows  = 20;
 int  scroll_offset = 0;
 int  sel_col       = 0;
@@ -96,6 +104,19 @@ yyerror(int *not_used, char *s)
 }
 */
 
+int *
+data_io(int r, int c)
+{
+	int *p;
+	p = sheet_get(data, r * columns + c);
+	if (p == NULL) return &no_data;
+	if /**/ (update.first < 0) update.last  = update.first = r;
+	else if (r < update.first) update.first = r;
+	else if (r > update.last)  update.last  = r;
+	return p;
+}
+
+
 /* === */
 
 
@@ -104,7 +125,8 @@ yyerror(int *not_used, char *s)
 static int
 setup(char *argv[])
 {
-	parser_input_str = NULL;
+	ex.r = -1;
+	ex.c = -1;
 	rows = get_term_rows() - 2;
 	data_size = 1;
 	data = malloc(sizeof(struct sheet));
@@ -326,42 +348,55 @@ csv_get_last_row()
 static int
 run(void)
 {
+	int i;
+	const char *str;
 	char c;
-	int count = 0;
-	size_t tc = 0;
+	int *num;
+	int n = 0;
+//
+	if (setjmp(on_parser_error)) {
+		drawf(1, 1, "\033[K%e%s", C_error, err_msg);
+	};
 	while (1) {
-		update_nums(row_changed_first, row_changed_last);
-		/*update_text(0);*/
-		row_changed_first = 0;
-		row_changed_last  = 0;
+		for (i = 0; i < 5 && ex.r >= 0; i++) {
+			str = comment_get(&text, columns * ex.r + ex.c);
+			//drawf(1, 1, "\033[K%e < %d > %e%s", C_number,
+			//    *sheet_get(data, columns * ex.r + ex.c), C_text, str);
+			num = data_io(ex.r, ex.c);
+			*num = parse(str);
+		};
+		if (update.first >= 0) {
+			update_nums(update.first, update.last);
+			update.first = -1;
+		};
 		while (read(0, &c, 1) <= 0) ;
 		switch (c) {
 		case '0': /* FALLTHROW */
-			if (count == 0) { move_selection(0, -99); break; };
+			if (n == 0) { move_selection(0, -99); break; };
 		case '1': case '2': case '3':
 		case '4': case '5': case '6':
 		case '7': case '8': case '9':
-			if (count < 0) {
-				count = c - '0';
+			if (n < 0) {
+				n = c - '0';
 				break;
-			} else if (count >= 1000000) {
+			} else if (n >= 1000000) {
 				break;
 			} else {
-				count *= 10;
-				count += c - '0';
+				n *= 10;
+				n += c - '0';
 				break;
 			};
-		case 'h': move_selection( 0, -(count ? count : 1)); count = 0; break;
-		case 'l': move_selection( 0,  (count ? count : 1)); count = 0; break;
-		case 'j': move_selection( (count ? count : 1),  0); count = 0; break;
-		case 'k': move_selection(-(count ? count : 1),  0); count = 0; break;
+		case 'h': move_selection( 0, -(n ? n : 1)); n = 0; break;
+		case 'l': move_selection( 0,  (n ? n : 1)); n = 0; break;
+		case 'j': move_selection( (n ? n : 1),  0); n = 0; break;
+		case 'k': move_selection(-(n ? n : 1),  0); n = 0; break;
 		case '>': prompt = "  > "; box_set_text(); break;
 		case '=': prompt = "  = "; box_set_num();  break;
 		case '/': prompt = "  / "; box_search();   break;
 		case '\n':
-			if (count != 0) {
-				*sel_get_num() = count;
-				count = 0;
+			if (n != 0) {
+				*sel_get_num() = n;
+				n = 0;
 				move_selection(1, 0);
 				break;
 			} else {
@@ -373,7 +408,7 @@ run(void)
 			return 0;
 		default:
 			putc('\a', stderr);
-			count = 0;
+			n = 0;
 			break;
 		};
 	};
@@ -471,15 +506,15 @@ scroll_down(int r)
 static void
 box_set_num(void)
 {
-	int i;
+	int i, n;
 	const char *str;
 	drawf(1, 1, "\033[K");
 	str = el_gets(editline, &i);
 	if (str != NULL) {
-		i = 0;
-		if (parse(str, &i) == 0) {
-			*sel_get_num() = i;
-		};
+		ex.r = sel_row + scroll_offset;
+		ex.c = sel_col;
+		n = parse(str);
+		*sel_get_num() = n;
 	};
 	terminal_init();
 	drawf(1, 1, "\033[K");
@@ -505,6 +540,8 @@ box_set_text(void)
 	};
 	terminal_init();
 	drawf(1, 1, "\033[K");
+	update_nums(sel_row + scroll_offset, sel_row + scroll_offset);
+	update_text_row(sel_row + scroll_offset);
 	move_selection(0, 0);
 }
 
@@ -546,13 +583,13 @@ box_search(void)
 static void
 parse_text(void)
 {
-	int i;
+	int i, n;
 	char *str;
 	str = comment_get(&text, columns * (sel_row + scroll_offset) + sel_col);
-	if (str == NULL) return ;
-	if (parse(str, &i) == 0) {
-		*sel_get_num() = i;
-	};
+	ex.r = sel_row + scroll_offset;
+	ex.c = sel_col;
+	n = parse(str);
+	*sel_get_num() = n;
 	move_selection(0, 0);
 }
 
@@ -628,15 +665,20 @@ static void
 update_nums(int ra, int rb)
 {
 	int i;
-	if (ra >= rb) return ;
+	if (ra > rb) return ;
 	else if (ra > scroll_offset + rows) return ;
 	else if (rb < scroll_offset) return ;
 	else if (rb > scroll_offset + rows) rb = scroll_offset + rows;
 	fprintf(stderr, "\033[%sm", C_number);
-	for (i = ra; i < rb; i++)
+	for (i = ra; i <= rb; i++) {
 		drawf(i - scroll_offset + 3, 6,  "%6ad",
 		      sheet_get(data, i * columns), columns);
-	update_text(0);
+		update_text_row(i + scroll_offset);
+	};
+	//update_text(0);
+	if (ra <= scroll_offset + sel_row
+	&&  rb >= scroll_offset + sel_row)
+		move_selection(0, 0);
 }
 
 

@@ -67,7 +67,7 @@ terminal_init(void)
 		.c_cc[VINTR] = 003,
 		.c_cc[VKILL] = 025,
 		.c_cc[VMIN]  = 0,
-		.c_cc[VTIME] = 1,
+		.c_cc[VTIME] = 2,
 	};
 	tcgetattr(0, &term_attr_old);
 	tcsetattr(0, TCSANOW, &attr_new);

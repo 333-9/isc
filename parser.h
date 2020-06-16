@@ -1,4 +1,6 @@
-//
+// date: 05.04 2020
 
 
-int parse(const char *, int *);
+extern struct { long r, c; } ex; // curent execution position
+
+int parse(const char *s);
