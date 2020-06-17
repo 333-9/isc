@@ -30,7 +30,6 @@ isc uses vim bindings to move the cursor.
 `q`  quit
 `>`  isert text
 `=`  store result of expression in current cell
-`+`  add the result of an expression to the current cell
 `Enter`  parses the text in the current box as an expression, or
          sets curent box to the modifier number
 
@@ -42,16 +41,17 @@ Result of operations can be "piped" into another cell
 with `>`: `4a + 20 > 2b`.
 You can also specify execution of cells command:
 ``` c
-a0 >! a0   pipe value to a2 and execute it's command
-a1 >& a1   execute if is nonzero
-a2 >| a2   execute if is zero
+0a >! 0a   pipe value to a2 and execute it's command
+1a >& 1a   execute if is nonzero
+2a >| 2a   execute if is zero
+1  >> a    add result to a
 
-b0 ;  b0   don't pipe value, only execute command
-b1 ;& b1   only execute if nonzero
-b2 ;| b2   only execute if zero
+0b ;  0b   don't pipe value, only execute command
+1b ;& 1b   only execute if nonzero
+2b ;| 2b   only execute if zero
 
-a3 >? a3 : c3   pipe and execute command a3 if nonzero, otherwise execute c3
-b3 ;? b3 : c3   only execute command b3 if nonzero, otherwise execute c3
+3a >? 3a : 3c   pipe and execute command a3 if nonzero, otherwise execute c3
+3b ;? 3b : 3c   only execute command b3 if nonzero, otherwise execute c3
 ```
 NOTE: `>& ; >|` always pipe the value, only execution is conditional
 
