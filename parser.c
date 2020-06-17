@@ -258,10 +258,26 @@ parse_return(const char *s)
 }
 
 
+static void
+parse_cond(const char **s, int n)
+{
+	if (!n) {
+		*s = strchr(*s, ':');
+		if (*s == NULL) {
+			ex.r = -1;
+			ex.c = -1;
+			return ;
+		};
+	};
+	parse_return(*s + 1);
+}
+
+
 int
 parse(const char *s)
 {
 	int n;
+	int *p;
 	char c;
 //
 	if (*s == '\0') m_err("no command");
@@ -276,47 +292,41 @@ parse(const char *s)
 	if (*s == '>') {
 		s += 1;
 		if (*s == '?') {
-			if (!n) {
-				s = strchr(s, ':');
-				if (s == NULL) {
-					ex.r = -1;
-					ex.c = -1;
-					return n;
-				};
-			};
-			parse_return(++s);
-			*data_io(ex.r, ex.c) = n;
+			parse_cond(&s, n);
+			if (ex.r >= 0)
+				*data_io(ex.r, ex.c) = n;
 			return n;
 		};
-		if (strchr("!&|", *s)) c = *s++;
+		if (strchr("!&|>", *s)) c = *s++;
 		else c = 0;
 		parse_return(s);
-		*data_io(ex.r, ex.c) = n;
-		if /**/ (c == '!')  return n;
-		else if (c == '&' && n)  return n;
-		else if (c == '|' && !n) return n;
+		if (c == '>') {
+			p = data_io(ex.r, ex.c);
+			*p += n;
+			ex.r = ex.c = -1;
+			return *p;
+		} else {
+			*data_io(ex.r, ex.c) = n;
+			if /**/ (c == '!')  return n;
+			else if (c == '&' && n)  return n;
+			else if (c == '|' && !n) return n;
+			else  ex.r = ex.c = -1;
+			return n;
+		};
 	} else if (*s == ';') {
 		s += 1;
 		if (*s == '?') {
-			if (!n) {
-				s = strchr(s, ':');
-				if (s == NULL) {
-					ex.r = -1;
-					ex.c = -1;
-					return n;
-				};
-			};
-			parse_return(++s);
+			parse_cond(&s, n);
 			return n;
 		};
 		parse_return(++s);
 		if /**/ (*s == '&' && n)  return n;
 		else if (*s == '|' && !n) return n;
 		else  return n;
+	} else {
+		ex.r = ex.c = -1;
+		return n;
 	};
-	ex.r = -1;
-	ex.c = -1;
-	return n;
 }
 
 /*
