@@ -39,6 +39,22 @@ nextt(const char **s)
 	while (**s && isspace(**s)) *s += 1;
 }
 
+static void
+skipparen(const char **s)
+{
+	const char *p;
+	if (**s == '[') {
+		p = strchr(*s, ']');
+		if (p == NULL) return ;
+		*s = p + 1;
+	};
+	if (**s == '{') {
+		p = strchr(*s, '}');
+		if (p == NULL) return ;
+		*s = p + 1;
+	};
+}
+
 
 static void
 m_err(const char *e)
@@ -250,8 +266,13 @@ parse(const char *s)
 //
 	if (*s == '\0') m_err("no command");
 	if (ex.r < 0) return 0;
+//
+	nextt(&s);
+	if (*s == '=') s += 1;
+	skipparen(&s);
 	n = parse_expr(&s);
 	nextt(&s);
+//
 	if (*s == '>') {
 		s += 1;
 		if (*s == '?') {

@@ -510,13 +510,13 @@ box_set_num(void)
 	const char *str;
 	drawf(1, 1, "\033[K");
 	str = el_gets(editline, &i);
+	terminal_init();
 	if (str != NULL) {
 		ex.r = sel_row + scroll_offset;
 		ex.c = sel_col;
 		n = parse(str);
 		*sel_get_num() = n;
 	};
-	terminal_init();
 	drawf(1, 1, "\033[K");
 	drawf(1, 8, "%s", str);
 	move_selection(1, 0);
@@ -531,6 +531,7 @@ box_set_text(void)
 	char *str_;
 	drawf(1, 1, "\033[K");
 	str = el_gets(editline, &i);
+	terminal_init();
 	if (str != NULL && str[0] == '\0') {
 		free(comment_remove(&text, columns * sel_row + sel_col));
 	} else if (str != NULL) {
@@ -538,7 +539,6 @@ box_set_text(void)
 		str_[i-1] = '\0';
 		comment_set(&text, columns * sel_row + sel_col, str_);
 	};
-	terminal_init();
 	drawf(1, 1, "\033[K");
 	update_nums(sel_row + scroll_offset, sel_row + scroll_offset);
 	update_text_row(sel_row + scroll_offset);
@@ -599,7 +599,7 @@ update_text_row(int row)
 {
 	int i, r, c, n;
 	int width;
-	char *str;
+	char *str, *p;
 	r = scroll_offset + row +3;
 	c = 7;
 	str = comment_get(&text, columns * (scroll_offset + row));
@@ -614,7 +614,15 @@ update_text_row(int row)
 			break;
 		case '=':
 			n = *sheet_get(data, text.index);
-			drawf(r, c, "%e%5d", C_special, n);
+			drawf(r, c, "%e%5d%e", C_special, n, C_none);
+			break;
+		case '{':
+		case '[':
+			p = strchr(str, ']');
+			if (p == NULL) break;
+			*p = 0;
+			drawf(r, c, "%e%5s", C_button, str +1);
+			*p = ']';
 			break;
 		default:
 			drawf(r, c, "%e%5s", C_text, str);
