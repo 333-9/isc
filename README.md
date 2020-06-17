@@ -2,6 +2,8 @@ isc - intiger spreadsheet calculator
 ====================================
 simple intiger based spreadsheet calculator
 
+![example](example_output.png)
+
 
 Insalation
 ----------
