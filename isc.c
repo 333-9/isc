@@ -379,7 +379,7 @@ run(void)
 			if (n < 0) {
 				n = c - '0';
 				break;
-			} else if (n >= 1000000) {
+			} else if (n >= 100000) {
 				break;
 			} else {
 				n *= 10;
