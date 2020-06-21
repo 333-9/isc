@@ -61,16 +61,28 @@ int     cmt_list_update(struct cmt_list **);
 /* 26.09. 2019 */
 
 
+struct data {
+	unsigned size;
+	unsigned ind;
+	struct sheet * arr;
+};
+
+int   data_init (struct data *);
+void  data_free (struct data *);
+int  *data_get  (struct data *, unsigned);
+int  *data_next (struct data *);
+
+
 struct sheet {
 	unsigned bottom;
 	unsigned ind;
 	int * val;
 };
 
-int   sheet_init (struct sheet *p);
-void  sheet_free (struct sheet *p);
-int * sheet_get  (struct sheet *p, unsigned i);
-int * sheet_next (struct sheet *p);
+int   sheet_init (struct sheet *);
+void  sheet_free (struct sheet *);
+int * sheet_get  (struct sheet *, unsigned);
+int * sheet_next (struct sheet *);
 
 
 

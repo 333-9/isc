@@ -15,22 +15,85 @@
 int cmt_sort_compare(const void *, const void *);
 
 
+const unsigned sheet_size = sizeof(int) * 2048;
+
+
 
 
 // -------------------
 
 
 
+int
+data_init(struct data * const d)
+{
+	d->size = 2;
+	d->ind  = 0;
+	d->arr = malloc(d->size * sizeof(struct sheet));
+	if (d->arr == NULL) return -1;
+	if (sheet_init(d->arr +0) < 0) return -1;
+	if (sheet_init(d->arr +1) < 0) return -1;
+	return 0;
+}
 
-/*
-struct sheet {
-	unsigned bottom;
-	unsigned ind;
-	int * val;
-};
-*/
+static int
+data_realloc(struct data * const d)
+{
+	struct sheet *p;
+	d->size += 2;
+	if (d->size >= 400) return -1;
+	p = realloc(d->arr, d->size * sizeof(struct sheet));
+	if (p == NULL) return -1;
+	if (sheet_init(d->arr + d->size - 1) < 0) return -1;
+	if (sheet_init(d->arr + d->size - 2) < 0) return -1;
+	return 0;
+}
 
-const unsigned sheet_size = sizeof(int) * 2048;
+void
+data_free(struct data * const d)
+{
+	unsigned i;
+	for (i = 0; i < d->size; i++) {
+		sheet_free(d->arr +i);
+	};
+	free(d->arr);
+	d->arr = NULL;
+}
+
+int *
+data_get(struct data * const d, unsigned i)
+{
+	unsigned di, si;
+	di = i / sheet_size;
+	si = i % sheet_size;
+	while (di >= d->size) {
+		if (data_realloc(d) < 0)
+			return NULL;
+	};
+	d->ind = di;
+	return sheet_get(d->arr +di, si);
+}
+
+int *
+data_next(struct data * const d)
+{
+	int *p;
+	p = sheet_next(d->arr + d->ind);
+	if (p != NULL)
+		return p;
+	//
+	d->ind += 1;
+	while (d->ind >= d->size) {
+		if (data_realloc(d) < 0)
+			return NULL;
+	};
+	return sheet_get(d->arr + d->ind, 0);
+}
+
+
+
+// -------------------
+
 
 
 int
@@ -42,7 +105,6 @@ sheet_init(struct sheet *p)
 	return -(p->val == NULL);
 }
 
-
 void
 sheet_free(struct sheet *p)
 {
@@ -51,31 +113,27 @@ sheet_free(struct sheet *p)
 	p->val = NULL;
 }
 
-
 int *
 sheet_get(struct sheet *p, unsigned i)
 {
-	if (i > sheet_size) p->ind = sheet_size -1;
-	else if (!p->val) return (int *) &p->bottom;
-	else p->ind = i;
-	return p->val + i;
+	p->ind = i;
+	if (p->ind > sheet_size || !p->val)
+		return NULL;
+	return p->val + p->ind;
 }
-
 
 int *
 sheet_next(struct sheet *p)
 {
-	if (++p->ind > sheet_size) p->ind = sheet_size -1;
-	else if (!p->val) return (int *) &p->bottom;
+	p->ind += 1;
+	if (p->ind > sheet_size || !p->val)
+		return NULL;
 	return p->val + p->ind;
 }
 
 
 
-
 // -------------------
-
-
 
 
 int
@@ -95,7 +153,6 @@ comment_init(struct text *c)
 	return 0;
 }
 
-
 void
 comment_free(struct text *c)
 {
@@ -106,7 +163,6 @@ comment_free(struct text *c)
 	free(c->str);  c->str = NULL;
 	return ;
 }
-
 
 static int
 comment_realloc(struct text *c, int fact)
@@ -139,7 +195,6 @@ comment_realloc(struct text *c, int fact)
 	};
 }
 
-
 static unsigned
 comment_search(struct text *c, unsigned ind)
 {
@@ -158,7 +213,6 @@ comment_search(struct text *c, unsigned ind)
 	//if (p != NULL)
 	//	return (unsigned) (((size_t) c->ind - (size_t) p) / sizeof(c->ind[0]));
 }
-
 
 char *
 comment_set(struct text *c, unsigned ind, char *str)
@@ -187,7 +241,6 @@ comment_set(struct text *c, unsigned ind, char *str)
 	};
 }
 
-
 char *
 comment_remove(struct text *c, unsigned ind)
 {
@@ -204,7 +257,6 @@ comment_remove(struct text *c, unsigned ind)
 	return str;
 }
 
-
 char *
 comment_get(struct text *c, unsigned ind)
 {
@@ -213,7 +265,6 @@ comment_get(struct text *c, unsigned ind)
 	c->last = comment_search(c, ind);
 	return (c->ind[c->last] == c->index) ? c->str[c->last++] : "";
 }
-
 
 char *
 comment_next(struct text *c)
