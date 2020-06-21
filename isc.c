@@ -148,22 +148,21 @@ setup(char *argv[])
 static void
 update_screen()
 {
-	int i = 0;
 	int r, c;
 	int *num;
 	drawf(1, 1, "\033[J\n     %e", C_ind);
 	for (c = 0; c < columns; c++) {
-		fprintf(stderr, "   %c  ", 'a' + i);
+		fprintf(stderr, "   %c  ", 'a' + c);
 	};
 	num = sheet_get(data, scroll_offset * columns);
-	num = num ? num : &i;
+	num = num ? num : &no_data;
 	for (r = 0; r < rows; r++) {
 		drawf(0, 0, "\n%e%5d%e", C_ind, scroll_offset + r, C_number);
 		for (c = 0; c < columns; c++) {
 			if (*num) drawf(0, 0, "%6d", *num);
 			else      drawf(0, 0, "      ");
 			num = sheet_next(data);
-			num = num ? num : &i;
+			num = num ? num : &no_data;
 		};
 	};
 	update_text(0);
