@@ -1,26 +1,26 @@
 /* isc.h */
 
 
-char  *parser_input_str;
-int  row_changed_first;
-int  row_changed_last;
+struct data  data;
+struct text  text;
+int no_data = 0;
 
-int rows;
 
-int mark_col;
-int mark_row;
-int sel_col;
-int sel_row;
-size_t  scroll_offset;
 
-struct vsheet  *sheet;
-struct cmt_list   *text ;
+jmp_buf         on_parser_error;
+static jmp_buf  on_error;
+const char *    err_msg = "";
 
+
+const int  columns;
+int  rows;
+int  scroll_offset;
+int  sel_col;
+int  sel_row;
 
 
 
 #define die(s)  die_line_num(__LINE__, s)
-
 void  die_line_num(int, const char *);
 
 /*

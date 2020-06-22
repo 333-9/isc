@@ -1,4 +1,4 @@
-const unsigned short  columns  = 12;
+const int  columns  = 12;
 
 
 const char *C_none       = "0";

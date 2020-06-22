@@ -30,14 +30,14 @@ die(s)  die_line_num(__LINE__, s)
 
 
 
-struct data  *data = NULL;
-struct text   text;
+struct data  data;
+struct text  text;
 
 int no_data = 0;
 
 jmp_buf         on_parser_error;
-const char *    err_msg = "";
 static jmp_buf  on_error;
+const char *    err_msg = "";
 
 
 struct row_update {
@@ -107,7 +107,7 @@ int *
 data_io(int r, int c)
 {
 	int *p;
-	p = data_get(data, r * columns + c);
+	p = data_get(&data, r * columns + c);
 	if (p == NULL) return &no_data;
 	if /**/ (update.first < 0) update.last  = update.first = r;
 	else if (r < update.first) update.first = r;
@@ -127,8 +127,7 @@ setup(char *argv[])
 	ex.r = -1;
 	ex.c = -1;
 	rows = get_term_rows() - 2;
-	data = malloc(sizeof(struct data));
-	if (data_init(data) < 0)      err(1, "memory allocation error");
+	if (data_init(&data) < 0)      err(1, "memory allocation error");
 	if (comment_init(&text) < 0)  err(1, "memory allocation error");
 	csv_read("out.csv");
 	/* --- */
@@ -152,14 +151,14 @@ update_screen()
 	for (c = 0; c < columns; c++) {
 		fprintf(stderr, "   %c  ", 'a' + c);
 	};
-	num = data_get(data, scroll_offset * columns);
+	num = data_get(&data, scroll_offset * columns);
 	num = num ? num : &no_data;
 	for (r = 0; r < rows; r++) {
 		drawf(0, 0, "\n%e%5d%e", C_ind, scroll_offset + r, C_number);
 		for (c = 0; c < columns; c++) {
 			if (*num) drawf(0, 0, "%6d", *num);
 			else      drawf(0, 0, "      ");
-			num = data_next(data);
+			num = data_next(&data);
 			num = num ? num : &no_data;
 		};
 	};
@@ -213,10 +212,10 @@ csv_parse(char *line, int r)
 	int c = 0;
 	if (line == NULL) return 1;
 	if (*line == '#') return 0;
-	num = data_get(data, columns * r);
+	num = data_get(&data, columns * r);
 	for (;;) {
 		*num = strtol(line, &end, 0);
-		num = data_next(data);
+		num = data_next(&data);
 		if (num == NULL) err(1, "parse-num");
 		line = end;
 		switch (*line) {
@@ -282,17 +281,17 @@ csv_write(const char *file_name)
 	height = csv_get_last_row();
 	text.last = 0;
 	text.index = -1;
-	data->ind = 0;
+	data.ind = 0;
 	// write
 	for (r = 0; r < height; r++, off += columns) {
 		width = csv_get_row_width(r);
-		num = data_get(data, off);
+		num = data_get(&data, off);
 		str = comment_get(&text, off);
 		for (c = 0 ; c < width; c++) {
 			if (*num) fprintf(stream, "%d", *num);
 			if (*str) fprintf(stream, "'%s'", str);
 			putc(',', stream);
-			num = data_next(data);
+			num = data_next(&data);
 			str = comment_next(&text);
 		};
 		if (width == 0) putc(',', stream);
@@ -311,7 +310,7 @@ csv_get_row_width(int r)
 	int off = r * columns;
 	int max = 0;
 	for (i = 0; i < columns; i++)
-		if (data->val[off + i]) max = i;
+		if (data.val[off + i]) max = i;
 	for (i = 0; text.ind[text.i +i] < off + i; i++) {
 		if (text.ind[text.i +i] < 0) return max + 1;
 		if (text.ind[text.i +i] > off +max)
@@ -331,9 +330,9 @@ csv_get_last_row()
 	for (r = 0; r < text.size; r++)
 		if (text.ind[r] < 0) break;
 	max = !r ? 0 : text.ind[r -1];
-	for (r = max, num = data_get(data, r * columns); num != NULL;) {
+	for (r = max, num = data_get(&data, r * columns); num != NULL;) {
 		if(*num) max = r;
-		num = data_get(data, r * columns);
+		num = data_get(&data, r * columns);
 	};
 	return max + 1;
 #endif
@@ -358,7 +357,7 @@ run(void)
 		for (i = 0; i < 5 && ex.r >= 0; i++) {
 			str = comment_get(&text, columns * ex.r + ex.c);
 			//drawf(1, 1, "\033[K%e < %d > %e%s", C_number,
-			//    *data_get(data, columns * ex.r + ex.c), C_text, str);
+			//    *data_get(&data, columns * ex.r + ex.c), C_text, str);
 			num = data_io(ex.r, ex.c);
 			*num = parse(str);
 		};
@@ -461,7 +460,7 @@ scroll_up(int r)
 		drawf(3, 6, "\033[K");
 		scroll_offset -= 1;
 		drawf(3, 1, "%e%5d%e%6ad", C_ind, scroll_offset, C_number,
-			data_get(data, scroll_offset * columns), columns);
+			data_get(&data, scroll_offset * columns), columns);
 		update_text(1); /* draw text */
 	};
 }
@@ -494,7 +493,7 @@ scroll_down(int r)
 		for (i = 0; i < columns; i++) fprintf(stderr, "   %c  ", 'a' + i);
 		scroll_offset += 1;
 		drawf(rows +2, 1, "%e%5d%e%6ad", C_ind, scroll_offset + rows -1, C_number,
-		         data_get(data, columns * (scroll_offset + rows -1)), columns);
+		         data_get(&data, columns * (scroll_offset + rows -1)), columns);
 		update_text(-1); /* draw text */
 	};
 }
@@ -610,7 +609,7 @@ update_text_row(int row)
 			while (width--) str = comment_next(&text);
 			break;
 		case '=':
-			n = *data_get(data, text.index);
+			n = *data_get(&data, text.index);
 			drawf(r, c, "%e%5d%e", C_special, n, C_none);
 			break;
 		case '{':
@@ -641,12 +640,12 @@ update_cursor_text(int update_command_line)
 		update_text_row(sel_row);
 		if (update_command_line) {
 			drawf(1, 1, "\033[K%e [ %d ] %e%s", C_number,
-			    *data_get(data, columns * (sel_row + scroll_offset) + sel_col),
+			    *data_get(&data, columns * (sel_row + scroll_offset) + sel_col),
 			    C_text, str);
 		};
 	} else if (update_command_line) {
 		drawf(1, 1, "\033[K%e [ %d ]", C_number,
-		    *data_get(data, columns * (sel_row + scroll_offset) + sel_col));
+		    *data_get(&data, columns * (sel_row + scroll_offset) + sel_col));
 	};
 }
 
@@ -677,7 +676,7 @@ update_nums(int ra, int rb)
 	fprintf(stderr, "\033[%sm", C_number);
 	for (i = ra; i <= rb; i++) {
 		drawf(i - scroll_offset + 3, 6,  "%6ad",
-		      data_get(data, i * columns), columns);
+		      data_get(&data, i * columns), columns);
 		update_text_row(i + scroll_offset);
 	};
 	//update_text(0);
@@ -691,7 +690,7 @@ static int *
 sel_get_num()
 {
 	int *p;
-	p = data_get(data, columns * (scroll_offset + sel_row) + sel_col);
+	p = data_get(&data, columns * (scroll_offset + sel_row) + sel_col);
 	if (p == NULL) die("Selection out of bounds");
 	return p;
 }
@@ -707,7 +706,7 @@ restore(void)
 {
 	terminal_buffer_disable();
 	terminal_restore();
-	data_free(data);
+	data_free(&data);
 	comment_free(&text);
 	el_end(editline);
 }
